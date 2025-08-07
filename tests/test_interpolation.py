@@ -1,377 +1,410 @@
+# -*- coding: utf-8 -*-
 """
-Unit testai TemperatureInterpolator klasei
+TemperatureInterpolator klasės unit testai
 """
-
-import unittest
+import pytest
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 import sys
 import os
 
-# Pridedame weather_analysis katalogą į kelią
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'weather_analysis'))
+# Pridedame src katalogą į Python path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from interpolation import TemperatureInterpolator
 
-class TestTemperatureInterpolator(unittest.TestCase):
+
+class TestTemperatureInterpolator:
     """
-    Testų klasė TemperatureInterpolator funkcionalumui
+    TemperatureInterpolator klasės testai
     """
     
-    def setUp(self):
+    def setup_method(self):
         """
-        Nustatome testų aplinką
+        Pradinis testų nustatymas
         """
-        self.interpolator = TemperatureInterpolator()
+        # Sukuriame test temperatūros duomenis kas 30 minučių
+        dates = pd.date_range('2024-01-01 00:00', '2024-01-01 12:00', freq='30min', tz='Europe/Vilnius')
+        np.random.seed(42)
         
-        # Sukuriame test duomenis kas 30 minučių
-        dates = pd.date_range('2024-01-01 00:00', periods=48, freq='30T')
-        self.temperature_series = pd.Series(
-            data=np.random.normal(5, 3, 48),  # Temperatūra apie 5°C
-            index=dates,
-            name='temperature'
-        )
+        # Sukuriame realistiškas temperatūros reikšmes su trendu
+        base_temps = np.linspace(-2, 5, len(dates))  # Temperatūra kyla per dieną
+        noise = np.random.normal(0, 1, len(dates))  # Pridedame triukšmą
+        temperatures = base_temps + noise
         
-        # Sukuriame sparse duomenis (kas 2 valandas)
-        sparse_dates = pd.date_range('2024-01-01 00:00', periods=12, freq='2H')
-        self.sparse_temperature = pd.Series(
-            data=[0, 2, 5, 8, 10, 12, 10, 8, 5, 3, 1, 0],
-            index=sparse_dates,
-            name='temperature'
-        )
-    
-    def test_init(self):
+        self.temperature_data = pd.Series(temperatures, index=dates, name='temperatura')
+        self.interpolator = TemperatureInterpolator(self.temperature_data)
+        
+    def test_init_with_data(self):
         """
-        Testuojame interpolacijos klasės inicializaciją
+        Testuoja objekto inicializavimą su duomenimis
+        """
+        assert self.interpolator.original_data is not None
+        assert len(self.interpolator.original_data) > 0
+        assert self.interpolator.interpolated_data is None
+        
+    def test_init_without_data(self):
+        """
+        Testuoja objekto inicializavimą be duomenų
         """
         interpolator = TemperatureInterpolator()
+        assert interpolator.original_data is None
+        assert interpolator.interpolated_data is None
         
-        self.assertEqual(interpolator.supported_methods, ['linear', 'time', 'polynomial', 'spline'])
-    
-    def test_interpolate_temperature_linear(self):
+    def test_interpolate_to_5min_linear_success(self):
         """
-        Testuojame tiesinę interpoliaciją
+        Testuoja tiesinę interpoliaciją iki 5 minučių
         """
-        result = self.interpolator.interpolate_temperature(
-            self.sparse_temperature,
-            target_frequency='30T',
-            method='linear'
-        )
+        result = self.interpolator.interpolate_to_5min('linear')
         
-        self.assertIsInstance(result, pd.Series)
-        self.assertFalse(result.empty)
+        assert isinstance(result, pd.Series)
+        assert not result.empty
+        assert len(result) > len(self.temperature_data)
         
-        # Turėtume gauti daugiau duomenų taškų
-        self.assertGreater(len(result), len(self.sparse_temperature))
+        # Patikrinome ar laiko intervalas teisingas (5 min)
+        time_diffs = result.index[1:] - result.index[:-1]
+        expected_diff = timedelta(minutes=5)
+        assert all(diff == expected_diff for diff in time_diffs)
         
-        # Patikrinome ar indeksas yra datetime
-        self.assertIsInstance(result.index, pd.DatetimeIndex)
-    
-    def test_interpolate_temperature_all_methods(self):
+    def test_interpolate_to_5min_time_success(self):
         """
-        Testuojame visus interpoliacijos metodus
+        Testuoja laiko pagrįstą interpoliaciją
         """
-        methods = ['linear', 'time', 'polynomial', 'spline']
+        result = self.interpolator.interpolate_to_5min('time')
         
-        for method in methods:
-            with self.subTest(method=method):
-                result = self.interpolator.interpolate_temperature(
-                    self.sparse_temperature,
-                    target_frequency='30T',
-                    method=method
-                )
+        assert isinstance(result, pd.Series)
+        assert not result.empty
+        assert len(result) > len(self.temperature_data)
+        
+    def test_interpolate_to_5min_polynomial_success(self):
+        """
+        Testuoja polinominę interpoliaciją
+        """
+        result = self.interpolator.interpolate_to_5min('polynomial', polynomial_order=2)
+        
+        assert isinstance(result, pd.Series)
+        assert not result.empty
+        assert len(result) > len(self.temperature_data)
+        
+    def test_interpolate_to_5min_spline_success(self):
+        """
+        Testuoja spline interpoliaciją
+        """
+        result = self.interpolator.interpolate_to_5min('spline')
+        
+        assert isinstance(result, pd.Series)
+        assert not result.empty
+        assert len(result) > len(self.temperature_data)
+        
+    def test_interpolate_invalid_method(self):
+        """
+        Testuoja interpoliaciją su neteisingų metodu
+        """
+        result = self.interpolator.interpolate_to_5min('invalid_method')
+        assert result is None
+        
+    def test_interpolate_no_data(self):
+        """
+        Testuoja interpoliaciją be duomenų
+        """
+        interpolator = TemperatureInterpolator()
+        result = interpolator.interpolate_to_5min('linear')
+        assert result is None
+        
+    def test_interpolate_insufficient_data(self):
+        """
+        Testuoja interpoliaciją su nepakankamais duomenimis
+        """
+        # Sukuriame duomenis tik su vienu tašku
+        single_point = pd.Series([5.0], 
+                               index=[datetime(2024, 1, 1, 12, 0, 0)], 
+                               name='temperatura')
+        
+        interpolator = TemperatureInterpolator(single_point)
+        result = interpolator.interpolate_to_5min('linear')
+        assert result is None
+        
+    def test_interpolate_with_nan_values(self):
+        """
+        Testuoja interpoliaciją su NaN reikšmėmis
+        """
+        # Pridedame NaN reikšmių
+        data_with_nan = self.temperature_data.copy()
+        data_with_nan.iloc[2] = np.nan
+        data_with_nan.iloc[5] = np.nan
+        
+        interpolator = TemperatureInterpolator(data_with_nan)
+        result = interpolator.interpolate_to_5min('linear')
+        
+        assert isinstance(result, pd.Series)
+        assert not result.empty
+        assert not result.isnull().any()  # Interpoliuoti duomenys neturėtų turėti NaN
+        
+    def test_compare_methods_success(self):
+        """
+        Testuoja metodų palyginimą
+        """
+        comparison = self.interpolator.compare_methods()
+        
+        assert isinstance(comparison, dict)
+        assert 'originalūs_duomenys' in comparison
+        assert 'metodų_palyginimas' in comparison
+        
+        # Patikriname ar visi metodai buvo testuoti
+        methods_results = comparison['metodų_palyginimas']
+        for method in self.interpolator.interpolation_methods:
+            assert method in methods_results
+            
+            if 'klaida' not in methods_results[method]:
+                assert 'taškų_skaičius' in methods_results[method]
+                assert 'interpoliacijos_laikas_s' in methods_results[method]
+                assert 'kokybės_metrikos' in methods_results[method]
                 
-                self.assertIsInstance(result, pd.Series)
-                self.assertFalse(result.empty)
-                self.assertGreater(len(result), len(self.sparse_temperature))
-    
-    def test_interpolate_temperature_invalid_method(self):
+    def test_compare_methods_specific_list(self):
         """
-        Testuojame interpoliaciją su netinkamu metodu
+        Testuoja metodų palyginimą su konkrečiu metodų sąrašu
         """
-        result = self.interpolator.interpolate_temperature(
-            self.sparse_temperature,
-            target_frequency='30T',
-            method='neteisinga_metodu'
-        )
+        methods_to_test = ['linear', 'time']
+        comparison = self.interpolator.compare_methods(methods_to_test)
         
-        # Turėtų naudoti linear kaip default
-        self.assertIsInstance(result, pd.Series)
-        self.assertFalse(result.empty)
-    
-    def test_interpolate_temperature_empty_series(self):
-        """
-        Testuojame interpoliaciją su tuščia serija
-        """
-        empty_series = pd.Series([], dtype=float)
-        empty_series.index = pd.DatetimeIndex([])
+        assert isinstance(comparison, dict)
+        methods_results = comparison['metodų_palyginimas']
         
-        result = self.interpolator.interpolate_temperature(
-            empty_series,
-            target_frequency='5T',
-            method='linear'
-        )
-        
-        self.assertIsNone(result)
-    
-    def test_interpolate_temperature_invalid_index(self):
+        for method in methods_to_test:
+            assert method in methods_results
+            
+    def test_calculate_quality_metrics(self):
         """
-        Testuojame interpoliaciją su netinkamu indeksu
+        Testuoja kokybės metrikų skaičiavimą
         """
-        invalid_series = pd.Series([1, 2, 3, 4, 5])  # Integer index
+        interpolated = self.interpolator.interpolate_to_5min('linear')
+        metrics = self.interpolator._calculate_quality_metrics(interpolated)
         
-        result = self.interpolator.interpolate_temperature(
-            invalid_series,
-            target_frequency='5T',
-            method='linear'
-        )
+        assert isinstance(metrics, dict)
         
-        self.assertIsNone(result)
-    
-    def test_interpolate_temperature_with_nans(self):
-        """
-        Testuojame interpoliaciją su NaN reikšmėmis
-        """
-        series_with_nans = self.sparse_temperature.copy()
-        series_with_nans.iloc[2:4] = np.nan  # Pridedame NaN reikšmes
+        expected_metrics = ['vidurkis', 'standartinis_nuokrypis', 'minimumas', 
+                          'maksimumas', 'vidutinis_gradientas', 'maksimalus_gradientas',
+                          'tankumo_koeficientas']
         
-        result = self.interpolator.interpolate_temperature(
-            series_with_nans,
-            target_frequency='30T',
-            method='linear'
-        )
-        
-        self.assertIsInstance(result, pd.Series)
-        self.assertFalse(result.empty)
-        
-        # Patikrinome ar nėra NaN interpoliuotame rezultate
-        self.assertFalse(result.isna().any())
-    
-    def test_interpolate_different_frequencies(self):
-        """
-        Testuojame skirtingus interpoliacijos dažnius
-        """
-        frequencies = ['5T', '10T', '15T', '30T', '1H']
-        
-        for freq in frequencies:
-            with self.subTest(frequency=freq):
-                result = self.interpolator.interpolate_temperature(
-                    self.sparse_temperature,
-                    target_frequency=freq,
-                    method='linear'
-                )
+        for metric in expected_metrics:
+            if metric in metrics:
+                assert isinstance(metrics[metric], (int, float))
+                assert not np.isnan(metrics[metric])
                 
-                self.assertIsInstance(result, pd.Series)
-                self.assertFalse(result.empty)
-    
-    def test_interpolate_with_statistics(self):
+    def test_validate_interpolation_success(self):
         """
-        Testuojame interpoliaciją su statistikos grąžinimu
+        Testuoja interpoliacijos validavimą
         """
-        result = self.interpolator.interpolate_with_statistics(
-            self.sparse_temperature,
-            target_frequency='15T',
-            method='linear'
-        )
+        validation = self.interpolator.validate_interpolation(test_ratio=0.2)
         
-        self.assertIsInstance(result, dict)
+        assert isinstance(validation, dict)
+        assert 'train_duomenų_skaičius' in validation
+        assert 'test_duomenų_skaičius' in validation
+        assert 'metodų_validacija' in validation
         
-        # Patikrinome būtinus raktus
-        required_keys = [
-            'interpolated_data', 'original_points', 'interpolated_points',
-            'improvement_ratio', 'method', 'frequency'
-        ]
-        
-        for key in required_keys:
-            self.assertIn(key, result)
-        
-        # Patikrinome statistikos duomenis
-        self.assertIsInstance(result['original_points'], int)
-        self.assertIsInstance(result['interpolated_points'], int)
-        self.assertIsInstance(result['improvement_ratio'], (int, float))
-        self.assertEqual(result['method'], 'linear')
-        self.assertEqual(result['frequency'], '15T')
-    
-    def test_interpolate_with_statistics_empty_data(self):
+        # Patikriname ar yra validacijos metrikos
+        method_validations = validation['metodų_validacija']
+        for method, results in method_validations.items():
+            if 'klaida' not in results:
+                expected_metrics = ['vidutinė_absoliuti_klaida', 'šaknies_kvadratinė_klaida', 
+                                  'maksimali_klaida', 'testuotų_taškų_skaičius']
+                
+                for metric in expected_metrics:
+                    assert metric in results
+                    if metric != 'testuotų_taškų_skaičius':
+                        assert isinstance(results[metric], (int, float))
+                        assert results[metric] >= 0  # Klaidos negali būti neigiamos
+                        
+    def test_validate_interpolation_small_dataset(self):
         """
-        Testuojame interpoliaciją su statistika tuščiems duomenims
+        Testuoja validavimą su mažu duomenų rinkiniu
         """
-        empty_series = pd.Series([], dtype=float)
-        empty_series.index = pd.DatetimeIndex([])
+        # Sukuriame mažą duomenų rinkinį
+        small_dates = pd.date_range('2024-01-01', periods=5, freq='H', tz='Europe/Vilnius')
+        small_temps = pd.Series(range(5), index=small_dates, name='temperatura')
         
-        result = self.interpolator.interpolate_with_statistics(
-            empty_series,
-            target_frequency='5T',
-            method='linear'
-        )
+        interpolator = TemperatureInterpolator(small_temps)
+        validation = interpolator.validate_interpolation(test_ratio=0.2)
         
-        self.assertIsInstance(result, dict)
-        self.assertIsNone(result['interpolated_data'])
-        self.assertEqual(result['original_points'], 0)
-        self.assertEqual(result['interpolated_points'], 0)
-    
-    def test_compare_interpolation_methods(self):
+        assert isinstance(validation, dict)
+        assert validation['test_duomenų_skaičius'] >= 1
+        
+    def test_export_interpolated_data_csv(self):
         """
-        Testuojame interpoliacijos metodų palyginimą
+        Testuoja duomenų eksportavimą CSV formatu
         """
-        result = self.interpolator.compare_interpolation_methods(
-            self.sparse_temperature,
-            target_frequency='15T'
-        )
+        # Pirmiau interpoliuojame
+        self.interpolator.interpolate_to_5min('linear')
         
-        self.assertIsInstance(result, dict)
-        self.assertIn('methods', result)
-        self.assertIn('recommended_method', result)
+        test_filepath = 'test_export.csv'
         
-        # Patikrinome ar visi metodai buvo išbandyti
-        methods_results = result['methods']
-        for method in self.interpolator.supported_methods:
-            self.assertIn(method, methods_results)
-    
-    def test_compare_interpolation_methods_empty_data(self):
-        """
-        Testuojame metodų palyginimą su tuščiais duomenimis
-        """
-        empty_series = pd.Series([], dtype=float)
-        empty_series.index = pd.DatetimeIndex([])
-        
-        result = self.interpolator.compare_interpolation_methods(
-            empty_series,
-            target_frequency='5T'
-        )
-        
-        self.assertIsInstance(result, dict)
-    
-    def test_validate_interpolation(self):
-        """
-        Testuojame interpoliacijos validavimą
-        """
-        interpolated = self.interpolator.interpolate_temperature(
-            self.sparse_temperature,
-            target_frequency='15T',
-            method='linear'
-        )
-        
-        validation = self.interpolator.validate_interpolation(
-            self.sparse_temperature,
-            interpolated
-        )
-        
-        self.assertIsInstance(validation, dict)
-        self.assertIn('valid', validation)
-        self.assertIn('valid_range', validation)
-        self.assertIn('valid_mean', validation)
-        
-        # Gera interpoliacija turėtų būti valid
-        self.assertIsInstance(validation['valid'], bool)
-    
-    def test_validate_interpolation_empty_data(self):
-        """
-        Testuojame validavimą su tuščiais duomenimis
-        """
-        empty_series = pd.Series([], dtype=float)
-        empty_series.index = pd.DatetimeIndex([])
-        
-        validation = self.interpolator.validate_interpolation(
-            empty_series,
-            empty_series
-        )
-        
-        self.assertIsInstance(validation, dict)
-        self.assertFalse(validation['valid'])
-        self.assertIn('reason', validation)
-    
-    def test_print_interpolation_summary(self):
-        """
-        Testuojame interpoliacijos suvestinės spausdinimą
-        """
-        stats = self.interpolator.interpolate_with_statistics(
-            self.sparse_temperature,
-            target_frequency='10T',
-            method='linear'
-        )
-        
-        # Turėtų veikti be klaidų
         try:
-            self.interpolator.print_interpolation_summary(stats)
-        except Exception as e:
-            self.fail(f"print_interpolation_summary raised {e} unexpectedly!")
-    
-    def test_print_interpolation_summary_empty_stats(self):
+            success = self.interpolator.export_interpolated_data(test_filepath, 'csv')
+            
+            assert success is True
+            assert os.path.exists(test_filepath)
+            
+            # Patikriname ar galime nuskaityti atgal
+            imported_data = pd.read_csv(test_filepath, index_col=0, parse_dates=True)
+            assert not imported_data.empty
+            
+        finally:
+            # Išvalome test failą
+            if os.path.exists(test_filepath):
+                os.remove(test_filepath)
+                
+    def test_export_interpolated_data_json(self):
         """
-        Testuojame suvestinės spausdinimą su tuščia statistika
+        Testuoja duomenų eksportavimą JSON formatu
         """
-        empty_stats = {}
+        self.interpolator.interpolate_to_5min('linear')
         
-        # Turėtų veikti be klaidų
+        test_filepath = 'test_export.json'
+        
         try:
-            self.interpolator.print_interpolation_summary(empty_stats)
-        except Exception as e:
-            self.fail(f"print_interpolation_summary raised {e} unexpectedly!")
-
-class TestTemperatureInterpolatorQuality(unittest.TestCase):
-    """
-    Testai interpoliacijos kokybei
-    """
-    
-    def setUp(self):
+            success = self.interpolator.export_interpolated_data(test_filepath, 'json')
+            
+            assert success is True
+            assert os.path.exists(test_filepath)
+            
+        finally:
+            if os.path.exists(test_filepath):
+                os.remove(test_filepath)
+                
+    def test_export_no_interpolated_data(self):
         """
-        Nustatome kokybės testų aplinką
+        Testuoja eksportavimą be interpoliuotų duomenų
         """
-        self.interpolator = TemperatureInterpolator()
+        interpolator = TemperatureInterpolator(self.temperature_data)
+        # Nedarome interpoliacijos
         
-        # Sukuriame sinusoidalius duomenis kas 1 valandą
-        hours = pd.date_range('2024-01-01', periods=24, freq='1H')
-        # Temperatūros ciklas: šalta naktį, šilta dieną
-        temperatures = 5 + 10 * np.sin(np.linspace(0, 2*np.pi, 24))
+        success = interpolator.export_interpolated_data('test.csv', 'csv')
+        assert success is False
         
-        self.perfect_data = pd.Series(temperatures, index=hours)
+    def test_export_unsupported_format(self):
+        """
+        Testuoja eksportavimą su nepalaikoma formatu
+        """
+        self.interpolator.interpolate_to_5min('linear')
         
-        # Pasiimame kas 4 valandas (sparse duomenys)
-        self.sparse_data = self.perfect_data.iloc[::4]
-    
+        success = self.interpolator.export_interpolated_data('test.xyz', 'xyz')
+        assert success is False
+        
     def test_interpolation_preserves_trends(self):
         """
-        Testuojame ar interpoliacija išlaiko tendencijas
+        Testuoja ar interpoliacija išlaiko duomenų tendencijas
         """
-        interpolated = self.interpolator.interpolate_temperature(
-            self.sparse_data,
-            target_frequency='1H',
-            method='linear'
-        )
+        # Sukuriame duomenis su aiškiu trendu
+        dates = pd.date_range('2024-01-01', periods=10, freq='H', tz='Europe/Vilnius')
+        trend_temps = pd.Series(range(0, 20, 2), index=dates, name='temperatura')  # Linijinis augimas
         
-        self.assertIsNotNone(interpolated)
+        interpolator = TemperatureInterpolator(trend_temps)
+        interpolated = interpolator.interpolate_to_5min('linear')
         
-        # Patikrinome ar interpoliuoti duomenys yra tarp min ir max reikšmių
-        orig_min, orig_max = self.sparse_data.min(), self.sparse_data.max()
-        interp_min, interp_max = interpolated.min(), interpolated.max()
+        # Patikriname ar tendencija išliko (duomenys auga)
+        assert interpolated.iloc[-1] > interpolated.iloc[0]
         
-        # Interpoliuoti duomenys neturėtų viršyti originalių ribų per daug
-        tolerance = (orig_max - orig_min) * 0.1  # 10% tolerancija
-        self.assertGreaterEqual(interp_min, orig_min - tolerance)
-        self.assertLessEqual(interp_max, orig_max + tolerance)
-    
-    def test_interpolation_smoothness(self):
+        # Patikriname ar nėra didelių šuolių
+        diffs = interpolated.diff().dropna()
+        max_diff = diffs.abs().max()
+        
+        # Maksimalus skirtumas neturi būti per didelis lyginant su originaliaisiais duomenis
+        original_max_diff = trend_temps.diff().abs().max()
+        assert max_diff <= original_max_diff * 2  # Leistinas 2x padidėjimas
+        
+    def test_different_polynomial_orders(self):
         """
-        Testuojame interpoliacijos glotnumą
+        Testuoja skirtingas polinomo eiles
         """
-        interpolated = self.interpolator.interpolate_temperature(
-            self.sparse_data,
-            target_frequency='30T',
-            method='spline'
-        )
+        orders = [1, 2, 3]
         
-        self.assertIsNotNone(interpolated)
-        
-        # Skaičiuojame antrą išvestinę (glotnumo matas)
-        if len(interpolated) > 2:
-            second_derivative = interpolated.diff().diff()
+        for order in orders:
+            result = self.interpolator.interpolate_to_5min('polynomial', polynomial_order=order)
+            assert isinstance(result, pd.Series)
+            assert not result.empty
             
-            # Glotni kreivė turėtų turėti mažą antrą išvestinę
-            smoothness = second_derivative.abs().mean()
-            self.assertIsInstance(smoothness, (int, float))
-
-if __name__ == '__main__':
-    # Paleisdami testus
-    unittest.main(verbosity=2)
+    def test_interpolation_time_range_preservation(self):
+        """
+        Testuoja ar interpoliacija išlaiko laiko diapazoną
+        """
+        original_start = self.temperature_data.index.min()
+        original_end = self.temperature_data.index.max()
+        
+        interpolated = self.interpolator.interpolate_to_5min('linear')
+        
+        interpolated_start = interpolated.index.min()
+        interpolated_end = interpolated.index.max()
+        
+        # Interpoliuoti duomenys turėtų būti tame pačiame laiko diapazone
+        assert interpolated_start == original_start
+        assert interpolated_end == original_end
+        
+    def test_interpolation_methods_list(self):
+        """
+        Testuoja interpoliacijos metodų sąrašą
+        """
+        expected_methods = ['linear', 'time', 'polynomial', 'spline']
+        assert self.interpolator.interpolation_methods == expected_methods
+        
+    @pytest.mark.parametrize("method", ['linear', 'time', 'polynomial', 'spline'])
+    def test_all_interpolation_methods(self, method):
+        """
+        Parametrizuotas testas visiems interpoliacijos metodams
+        """
+        result = self.interpolator.interpolate_to_5min(method)
+        
+        assert isinstance(result, pd.Series)
+        assert not result.empty
+        assert len(result) > len(self.temperature_data)
+        assert result.name == 'temperatura'
+        
+    def test_interpolation_with_extreme_values(self):
+        """
+        Testuoja interpoliaciją su ekstremaliomis reikšmėmis
+        """
+        # Sukuriame duomenis su dideliais temperatūros svyravimais
+        dates = pd.date_range('2024-01-01', periods=5, freq='2H', tz='Europe/Vilnius')
+        extreme_temps = pd.Series([-30, 40, -25, 35, -20], index=dates, name='temperatura')
+        
+        interpolator = TemperatureInterpolator(extreme_temps)
+        result = interpolator.interpolate_to_5min('linear')
+        
+        assert isinstance(result, pd.Series)
+        assert not result.empty
+        
+        # Patikriname ar interpoliuotos reikšmės yra tarp originalių ekstremumai
+        assert result.min() >= extreme_temps.min()
+        assert result.max() <= extreme_temps.max()
+        
+    def test_memory_efficiency_large_dataset(self):
+        """
+        Testuoja atminties efektyvumą su dideliu duomenų rinkiniu
+        """
+        # Sukuriame didesnį duomenų rinkinį (savaitė kas 15 min)
+        large_dates = pd.date_range('2024-01-01', '2024-01-08', freq='15min', tz='Europe/Vilnius')
+        large_temps = pd.Series(np.random.normal(5, 10, len(large_dates)), 
+                              index=large_dates, name='temperatura')
+        
+        interpolator = TemperatureInterpolator(large_temps)
+        
+        # Matuojame interpoliacijos laiką
+        import time
+        start = time.time()
+        result = interpolator.interpolate_to_5min('linear')
+        end = time.time()
+        
+        assert isinstance(result, pd.Series)
+        assert (end - start) < 10  # Neturi užtrukti ilgiau nei 10 sekundžių
+        
+    def test_interpolation_data_integrity(self):
+        """
+        Testuoja duomenų vientisumo išlaikymą po interpoliacijos
+        """
+        original_mean = self.temperature_data.mean()
+        
+        interpolated = self.interpolator.interpolate_to_5min('linear')
+        interpolated_mean = interpolated.mean()
+        
+        # Vidurkiai neturėtų labai skirtis (tolerancija 10%)
+        assert abs(interpolated_mean - original_mean) / abs(original_mean) < 0.1

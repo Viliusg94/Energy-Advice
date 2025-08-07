@@ -1,433 +1,316 @@
-﻿# Instaliavimo instrukcijos
+﻿# Instaliavimo vadovas - Lietuvos oro duomenų analizės sistema
 
 ## Sistemos reikalavimai
 
-### OperacinÄ—s sistemos
- Windows 10/11
- macOS 10.14+
- Linux (Ubuntu 18.04+, CentOS 7+)
+### Minimalūs reikalavimai
+- **Python**: 3.8 ar naujesnė versija
+- **Operacinė sistema**: Windows 10/11, macOS 10.14+, arba Linux (Ubuntu 18.04+)
+- **Atmintis**: 4GB RAM (rekomenduojama 8GB)
+- **Disko vieta**: 1GB laisvos vietos
+- **Internetinis ryšys**: Reikalingas API užklausoms
 
-### Python versija
- Python 3.8 arba naujesnÄ—
- pip package manager
+### Rekomenduojami reikalavimai
+- **Python**: 3.9 ar 3.10
+- **Atmintis**: 8GB RAM ar daugiau
+- **Disko vieta**: 2GB laisvos vietos
+- **Internetinis ryšys**: Stabilus plačiajuostis ryšys
 
-### Internetinis ryÅys
- BÅ«tinas ryÅys su api.meteo.lt API
+## Instaliavimo žingsniai
 
-## 1. Python aplinkos paruoÅimas
+### 1. Python instaliavimas
 
-### Windows
+#### Windows
+1. Atsisiųskite Python iš [python.org](https://www.python.org/downloads/)
+2. Paleiskite installer'į
+3. **SVARBU**: Pažymėkite "Add Python to PATH"
+4. Pasirinkite "Install Now"
 
-#### 1.1 Python instaliavimas
-```powershell
-# AtsisiÅ³skite Python iÅ python.org arba naudokite winget
-winget install Python.Python.3.11
-
-# Patikrinkite instaliacijÄ…
-python version
-pip version
-```
-
-#### 1.2 Virtual environment sukÅ«rimas
-```powershell
-# Sukurkite virtual environment
-python m venv weather_env
-
-# Aktyvuokite
-weather_env\Scripts\activate
-
-# Patikrinkite
-where python
-```
-
-### macOS
-
-#### 1.1 Python instaliavimas
+#### macOS
 ```bash
 # Naudojant Homebrew (rekomenduojama)
 brew install python
 
-# Arba naudojant pyenv
-brew install pyenv
-pyenv install 3.11.0
-pyenv global 3.11.0
-
-# Patikrinkite
-python3 version
-pip3 version
+# Arba atsisiųskite iš python.org
 ```
 
-#### 1.2 Virtual environment sukÅ«rimas
+#### Linux (Ubuntu/Debian)
 ```bash
-# Sukurkite virtual environment
-python3 m venv weather_env
-
-# Aktyvuokite
-source weather_env/bin/activate
-
-# Patikrinkite
-which python
-```
-
-### Linux (Ubuntu/Debian)
-
-#### 1.1 Python instaliavimas
-```bash
-# Atnaujinkite package list
 sudo apt update
-
-# Ä®diekite Python ir pip
-sudo apt install python3 python3pip python3venv
-
-# Patikrinkite
-python3 version
-pip3 version
+sudo apt install python3 python3-pip python3-venv
 ```
 
-#### 1.2 Virtual environment sukÅ«rimas
-```bash
-# Sukurkite virtual environment
-python3 m venv weather_env
+### 2. Projekto parsisiunčiamas
 
-# Aktyvuokite
+#### Git klonuojimas (rekomenduojama)
+```bash
+git clone https://github.com/your-username/weather-analysis.git
+cd weather-analysis
+```
+
+#### Atsisiunčiamas ZIP failas
+1. Eikite į GitHub projektą
+2. Spauskite "Code" → "Download ZIP"
+3. Išskleiskite archyvą
+4. Atidarykite terminal'ą projekto kataloge
+
+### 3. Virtual Environment sukūrimas
+
+#### Windows
+```powershell
+# Sukuriame virtual environment
+python -m venv weather_env
+
+# Aktyvuojame
+weather_env\Scripts\activate
+
+# Patikrinamas aktyvavimas (turėtų rodoma (weather_env))
+```
+
+#### macOS/Linux
+```bash
+# Sukuriame virtual environment
+python3 -m venv weather_env
+
+# Aktyvuojame
 source weather_env/bin/activate
 
-# Patikrinkite
-which python
+# Patikrinamas aktyvavimas (turėtų rodoma (weather_env))
 ```
 
-## 2. Projekto atsisiuntimas
+### 4. Priklausomybių instaliavimas
 
-### Git metodu (rekomenduojama)
 ```bash
-# Klonuokite repozitorijÄ…
-git clone https://github.com/yourusername/weatheranalysis.git
-cd weatheranalysis
+# Atnaujinamas pip
+python -m pip install --upgrade pip
 
-# Arba jei turite SSH
-git clone git@github.com:yourusername/weatheranalysis.git
-cd weatheranalysis
+# Instaliuojame reikalingas bibliotekas
+pip install -r requirements.txt
 ```
 
-### ZIP archyvo metodu
-1. AtsisiÅ³skite ZIP failÄ… iÅ GitHub
-2. IÅarchyvuokite ÄÆ norimÄ… katalogÄ…
-3. Atidarykite terminalÄ…/komandinÄ™ eilutÄ™ kataloge
+#### Priklausomybių sąrašas
+- `pandas>=1.5.0` - Duomenų analizė
+- `numpy>=1.24.0` - Matematiniai skaičiavimai
+- `requests>=2.28.0` - HTTP užklausos
+- `matplotlib>=3.6.0` - Grafikų kūrimas
+- `seaborn>=0.12.0` - Statistinės vizualizacijos
+- `pytz>=2023.3` - Laiko zonų valdymas
+- `jupyter>=1.0.0` - Interaktyvūs notebook'ai
+- `pytest>=7.0.0` - Testų sistema
+- `scipy>=1.10.0` - Moksliniai skaičiavimai
 
-## 3. PriklausomybiÅ³ instaliavimas
+### 5. Instaliavimo patikrinimas
 
-### 3.1 PagrindinÄ—s bibliotekos
 ```bash
-# Ä®sitikinkite kad virtual environment aktyvuotas
-# Windows: weather_env\Scripts\activate
-# macOS/Linux: source weather_env/bin/activate
+# Paleidžiame testus
+python -m pytest tests/ -v
 
-# Ä®diekite priklausomybes
-pip install r requirements.txt
-
-# Arba rankiniu bÅ«du
-pip install pandas>=1.5.0
-pip install numpy>=1.24.0
-pip install requests>=2.28.0
-pip install matplotlib>=3.6.0
-pip install seaborn>=0.12.0
-pip install pytz>=2023.3
-pip install jupyter>=1.0.0
-pip install pytest>=7.0.0
+# Jei testai praeina - instaliavimas sėkmingas
 ```
 
-### 3.2 Patikrinkite instaliacijÄ…
-```python
-# Paleiskite Python ir patikrinkite importus
-python c "
-import pandas as pd
-import numpy as np
-import requests
-import matplotlib.pyplot as plt
-import seaborn as sns
-import pytz
-print('Visos bibliotekos sÄ—kmingai ÄÆdiegtos!')
-print(f'Pandas: {pd.__version__}')
-print(f'NumPy: {np.__version__}')
-"
-```
+### 6. Pirmojo paleidimo testas
 
-## 4. Projekto konfigÅ«racija
-
-### 4.1 KatalogÅ³ struktÅ«ros patikrinimas
 ```bash
-# Patikrinkite ar yra visi katalogai
-ls la
-# TurÄ—tumÄ—te matyti:
-# src/
-# notebooks/
-# tests/
-# data/
-# plots/
-# docs/
-```
-
-### 4.2 TestÅ³ paleidimas
-```bash
-# Paleiskite unit testus
-python m pytest tests/ v
-
-# Arba konkreÄ¨iÄ… testÅ³ klasÄ™
-python m pytest tests/test_weather_api.py v
-
-# Su coverage report
-pip install pytestcov
-python m pytest tests/ cov=src covreport=html
-```
-
-## 5. Programos paleidimas
-
-### 5.1 Pagrindinis script'as
-```bash
-# Paleiskite pagrindinÄ™ programÄ…
+# Paleidžiame pagrindinę programą
 python main.py
+
+# Arba trumpa demo
+python -c "from src.weather_api import WeatherAPI; print('Sėkmingai importuota!')"
 ```
 
-### 5.2 Jupyter Notebook
+## Galimos problemos ir sprendimai
+
+### Problema: ModuleNotFoundError
+**Sprendimas**:
 ```bash
-# Paleiskite Jupyter server
-jupyter notebook
+# Patikrinkite ar active virtual environment
+# Windows:
+weather_env\Scripts\activate
 
-# Atidarykite notebooks/weather_analysis.ipynb
-# Arba naudokite Jupyter Lab
-jupyter lab
+# macOS/Linux:
+source weather_env/bin/activate
+
+# Perkraukite priklausomybes
+pip install -r requirements.txt
 ```
 
-### 5.3 Interaktyvus reÅ¾imas
-```python
-# Paleiskite Python REPL
-python
-
-# Importuokite modulius
-import sys
-sys.path.append('src')
-
-from weather_api import WeatherAPI
-from data_analysis import WeatherAnalyzer
-
-# Sukurkite API objektÄ…
-api = WeatherAPI("vilnius")
-print("API sÄ—kmingai inicializuotas!")
-```
-
-## 6. KonfigÅ«racijos nustatymai
-
-### 6.1 Environment variables (Pasirinktinai)
+### Problema: SSL Certificate errors
+**Sprendimas**:
 ```bash
-# Linux/macOS
-export WEATHER_API_URL="https://api.meteo.lt/"
-export DEFAULT_CITY="vilnius"
-export OUTPUT_DIR="./plots"
+# Atnaujinamas certifikatų paketas
+pip install --upgrade certifi
 
-# Windows
-set WEATHER_API_URL=https://api.meteo.lt/
-set DEFAULT_CITY=vilnius
-set OUTPUT_DIR=./plots
+# Arba naudojant trusted host
+pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org -r requirements.txt
 ```
 
-### 6.2 Logging konfigÅ«racija
-```python
-# Sukurkite logging.conf failÄ… (pasirinktinai)
-import logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s  %(name)s  %(levelname)s  %(message)s',
-    handlers=[
-        logging.FileHandler('weather_analysis.log'),
-        logging.StreamHandler()
-    ]
-)
-```
-
-## 7. Troubleshooting
-
-### 7.1 DaÅ¾nos problemos
-
-#### Python versijos klaida
+### Problema: Permission denied (Linux/macOS)
+**Sprendimas**:
 ```bash
-# Klaida: "Python 3.8+ required"
-# Sprendimas: Atnaujinkite Python
-python version  # Patikrinkite versijÄ…
+# Naudokite --user flag
+pip install --user -r requirements.txt
+
+# Arba patikrinkite failo teises
+chmod +x main.py
 ```
 
-#### SSL/HTTPS klaidos
+### Problema: Matplotlib nerodo grafikų
+**Sprendimas**:
 ```bash
-# Klaida: SSL certificate verify failed
-# Sprendimas:
-pip install trustedhost pypi.org trustedhost pypi.python.org trustedhost files.pythonhosted.org requests
+# Linux papildomas paketas
+sudo apt install python3-tk
+
+# macOS
+brew install tcl-tk
+
+# Windows - paprastai dirba iš karto
 ```
 
-#### Import klaidos
-```python
-# Klaida: ModuleNotFoundError
-# Sprendimas: Patikrinkite Python path
-import sys
-print(sys.path)
-sys.path.append('./src')  # PridÄ—kite src katalogÄ…
-```
+### Problema: Encoding klaidos (Windows)
+**Sprendimas**:
+- Įsitikinkite, kad terminal'as palaiko UTF-8
+- Windows 10+: `chcp 65001`
+- Naudokite PowerShell vietoj Command Prompt
 
-#### API klaidos
+## Konfigūracijos parinktys
+
+### Environment variables (pasirinktinai)
+Sukurkite `.env` failą projekto kataloge:
+
 ```bash
-# Klaida: Connection refused
-# Patikrinkite internetinÄÆ ryÅÄÆ
-curl I https://api.meteo.lt/
+# API konfigūracija
+WEATHER_API_TIMEOUT=30
+WEATHER_API_RETRIES=3
 
-# Klaida: 429 Too Many Requests
-# Palaukite kelias minutes tarp uÅ¾klausÅ³
+# Logging lygis
+LOG_LEVEL=INFO
+
+# Grafikų konfigūracija
+PLOT_DPI=300
+PLOT_STYLE=seaborn
 ```
 
-### 7.2 Diagnostic script'as
-```python
-# diagnostic.py
-import sys
-import subprocess
-import importlib
-
-def check_python_version():
-    version = sys.version_info
-    if version.major >= 3 and version.minor >= 8:
-        print(f"ā… Python versija OK: {version.major}.{version.minor}.{version.micro}")
-        return True
-    else:
-        print(f"ā¯ Python versija per sena: {version.major}.{version.minor}.{version.micro}")
-        return False
-
-def check_packages():
-    required_packages = [
-        'pandas', 'numpy', 'requests', 
-        'matplotlib', 'seaborn', 'pytz'
-    ]
-    
-    missing = []
-    for package in required_packages:
-        try:
-            importlib.import_module(package)
-            print(f"ā… {package}  OK")
-        except ImportError:
-            print(f"ā¯ {package}  TRÅŖKSTA")
-            missing.append(package)
-    
-    return missing
-
-def check_internet():
-    try:
-        import requests
-        response = requests.get('https://api.meteo.lt/', timeout=5)
-        print("ā… API prieinamumas  OK")
-        return True
-    except:
-        print("ā¯ API neprieinamas")
-        return False
-
-if __name__ == "__main__":
-    print("š”¨ SISTEMOS PATIKRINIMAS")
-    print("=" * 30)
-    
-    python_ok = check_python_version()
-    missing_packages = check_packages()
-    api_ok = check_internet()
-    
-    print("\nš“‹ SUVESTINÄ–:")
-    if python_ok and not missing_packages and api_ok:
-        print("šˇ‰ Sistema paruoÅta naudojimui!")
-    else:
-        print("ā ļø¸ Reikia iÅsprÄ™sti problemas:")
-        if not python_ok:
-            print("    Atnaujinkite Python iki 3.8+")
-        if missing_packages:
-            print(f"    Ä®diekite: pip install {' '.join(missing_packages)}")
-        if not api_ok:
-            print("    Patikrinkite internetinÄÆ ryÅÄÆ")
+### Katalogų struktūra po instaliavimo
+```
+weather-analysis/
+├── data/                    # Bus sukurta automatiškai
+├── plots/                   # Bus sukurta automatiškai
+├── logs/                    # Bus sukurta automatiškai
+├── src/                     # Šaltinio kodas
+├── tests/                   # Testai
+├── docs/                    # Dokumentacija
+├── weather_env/             # Virtual environment
+├── main.py                  # Pagrindinė programa
+├── requirements.txt         # Priklausomybės
+└── README.md               # Projekto aprašymas
 ```
 
-### 7.3 Performance tikrinimas
+## Atnaujinimas
+
+### Priklausomybių atnaujinimas
 ```bash
-# Atminties naudojimas
-python c "
-import psutil
-import os
-process = psutil.Process(os.getpid())
-print(f'Atminties naudojimas: {process.memory_info().rss / 1024 / 1024:.2f} MB')
-"
+# Aktyvuokite virtual environment
+source weather_env/bin/activate  # macOS/Linux
+weather_env\Scripts\activate     # Windows
 
-# DuomenÅ³ apdorojimo greitis
-python c "
-import time
-import pandas as pd
-import numpy as np
+# Atnaujinkite visas priklausomybes
+pip install --upgrade -r requirements.txt
 
-start = time.time()
-df = pd.DataFrame(np.random.randn(10000, 10))
-df.describe()
-end = time.time()
-
-print(f'Pandas performance: {end  start:.4f} sekundÄ—s')
-"
+# Arba atskiras paketas
+pip install --upgrade pandas
 ```
 
-## 8. IDE setup (pasirinktinai)
-
-### 8.1 VS Code
-```json
-// .vscode/settings.json
-{
-    "python.defaultInterpreterPath": "./weather_env/bin/python",
-    "python.terminal.activateEnvironment": true,
-    "python.linting.enabled": true,
-    "python.linting.pylintEnabled": true
-}
-```
-
-### 8.2 PyCharm
-1. File ā†’ Settings ā†’ Project ā†’ Python Interpreter
-2. Pasirinkite weather_env/bin/python
-3. PridÄ—kite src/ prie PYTHONPATH
-
-## 9. Atnaujinimas
-
-### 9.1 Projekto atnaujinimas
+### Projekto atnaujinimas iš Git
 ```bash
-# Git pull
+# Parsisiunčiame naujausius keitimus
 git pull origin main
 
-# Atnaujinkite priklausomybes
-pip install r requirements.txt upgrade
+# Atnaujinamas priklausomybes jei reikia
+pip install -r requirements.txt
+
+# Paleidžiame testus
+python -m pytest tests/ -v
 ```
 
-### 9.2 BibliotekÅ³ atnaujinimas
+## Pašalinimas
+
+### Virtual environment pašalinimas
 ```bash
-# Atnaujinkite visas bibliotekas
-pip list outdated
-pip install upgrade pip
-pip install upgrade pandas numpy matplotlib seaborn requests
+# Deaktyvuojame environment
+deactivate
+
+# Ištriname katalogą
+# Windows:
+rmdir /s weather_env
+
+# macOS/Linux:
+rm -rf weather_env
 ```
 
-
-
-## ā… SÄ—kmingo ÄÆdiegimo patikrinimas
-
-Jei viskas ÄÆdiegta teisingai, turÄ—tumÄ—te galÄ—ti paleisti:
-
+### Pilnas projekto pašalinimas
 ```bash
-# 1. PagrindinÄÆ script'Ä…
-python main.py
+# Pašaliname visą projekto katalogą
+# Windows:
+rmdir /s weather-analysis
 
-# 2. Testus
-python m pytest tests/ v
-
-# 3. Jupyter notebook
-jupyter notebook notebooks/weather_analysis.ipynb
+# macOS/Linux:
+rm -rf weather-analysis
 ```
 
-Ir matyti tokius rezultatus:
- ā… DuomenÅ³ nuskaitymas iÅ API
- ā… AnalizÄ—s rezultatÅ³ spausdinimas  
- ā… GrafikÅ³ kÅ«rimas plots/ kataloge
- ā… DuomenÅ³ iÅsaugojimas data/ kataloge
+## Pagalba ir palaikymas
 
-**Jei kyla problemÅ³, perÅ¾iÅ«rÄ—kite Troubleshooting skyriÅ³ arba susisiekite su projekto palaikymo komanda.**
+### Dokumentacija
+- **API dokumentacija**: `docs/api_documentation.md`
+- **Naudojimo vadovas**: `docs/usage_guide.md`
+- **README failas**: `README.md`
+
+### Problemų pranešimai
+1. Patikrinkite ar problema aprašyta šiame vadove
+2. Ieškokite panašių problemų GitHub Issues
+3. Jei nerandu sprendimo, sukurkite naują Issue su:
+   - Python versija (`python --version`)
+   - OS informacija
+   - Klaidos pranešimas
+   - Žingsniai problemai atkurti
+
+### Log failai
+Sistema automatiškai kuria log failus:
+- `weather_analysis.log` - Pagrindiniai sistema logai
+- `data/` kataloge - Duomenų failai ir analizės rezultatai
+
+### Performance optimizavimas
+```bash
+# Jei turite daug RAM, galite padidinti pandas atminties limitą
+export PANDAS_MEMORY_LIMIT=8GB
+
+# Multi-core apdorojimas
+export NUMBA_NUM_THREADS=4
+```
+
+## Sėkmingo instaliavimo tikrinimo sąrašas
+
+- [ ] Python 3.8+ įdiegtas ir prieinamas PATH
+- [ ] Virtual environment sukurtas ir aktyvuotas
+- [ ] Visos priklausomybės įdiegtos (`pip list` rodo visas)
+- [ ] Testai praeina (`pytest tests/ -v`)
+- [ ] Pagrindinė programa paleidžiasi (`python main.py`)
+- [ ] Sukuriami grafikų ir duomenų katalogai
+- [ ] API prisijungimas veikia (bandykite gauti current weather)
+
+Sėkmingo instaliavimo atveju, sistema yra paruošta naudojimui!
+
+## Dažniausiai užduodami klausimai
+
+**Q: Ar reikia API rakto?**
+A: Ne, meteo.lt API yra nemokama ir nereikalauja registracijos.
+
+**Q: Kiek duomenų suvartoja programa?**  
+A: Tipiškas 30 dienų duomenų rinkinys - apie 10MB, interpoliuoti duomenys - apie 50MB.
+
+**Q: Ar veikia offline?**
+A: Ne, programa reikalauja internetinio ryšio API užklausoms.
+
+**Q: Ar galima naudoti kitą Python versiją?**
+A: Rekomenduojama 3.8-3.11. Senesnes versijos nepalaikomos.
+
+**Q: Ar Windows 7 palaikomas?**
+A: Ne, rekomenduojama Windows 10 ar naujesnė dėl Python ir bibliotekų palaikymo.

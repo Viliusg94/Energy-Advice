@@ -1,0 +1,112 @@
+{
+  "analysis_date": "2025-08-08 01:49:37",
+  "analysis_title": "Lietuvos oro duomenų analizė su realiais meteo.lt API duomenimis",
+  "api_source": "api.meteo.lt (OFICIALŪS REALŪS DUOMENYS)",
+  "city": "Vilnius",
+  "api_data_status": {
+    "current_weather_available": true,
+    "forecast_data_available": true,
+    "historical_data_available": false,
+    "api_limitation_note": "Istoriniai duomenys neprieinami per meteo.lt API"
+  },
+  "current_weather_data": {
+    "temperature": 14.1,
+    "feels_like": 14.1,
+    "humidity": 82,
+    "wind_speed": 2,
+    "pressure": 1022,
+    "precipitation": 0,
+    "condition": "cloudy",
+    "observation_time": "2025-08-07 22:00:00"
+  },
+  "forecast_statistics": {
+    "total_records": 84,
+    "time_range": {
+      "start": "2025-08-08T01:00:00+03:00",
+      "end": "2025-08-14T21:00:00+03:00"
+    },
+    "temperature": {
+      "min": 11.5,
+      "max": 24.7,
+      "mean": 17.688095238095237
+    },
+    "precipitation": {
+      "total": 10.500000000000002,
+      "max_hourly": 4.7,
+      "rainy_hours": 6
+    },
+    "humidity": {
+      "min": 36.0,
+      "max": 99.0,
+      "mean": 71.17857142857143
+    },
+    "wind": {
+      "max": 5.0,
+      "mean": 2.2976190476190474
+    }
+  },
+  "analysis_results": {
+    "modules_loaded": {
+      "weather_api": true,
+      "analyzer": true,
+      "visualizer": true,
+      "interpolator": true
+    },
+    "analysis_completed": {
+      "yearly_averages": true,
+      "day_night_analysis": true,
+      "correlation_analysis": true,
+      "weekend_forecast": true,
+      "extremes_analysis": true,
+      "interpolation": true,
+      "visualization": true
+    }
+  },
+  "generated_files": {
+    "plots": [
+      "correlation_heatmap.png",
+      "temperature_humidity_scatter.png",
+      "weather_dashboard.png"
+    ],
+    "data_files": [
+      "correlation_matrix.csv",
+      "forecast_data_used.csv",
+      "analysis_summary_notebook.json",
+      "final_analysis_report.json"
+    ],
+    "total_plot_count": 3
+  },
+  "system_info": {
+    "python_version": "3.12.7",
+    "pandas_version": "2.1.4",
+    "matplotlib_version": "3.8.2",
+    "analysis_duration": "Realūs duomenys apdoroti per ~5-10 sekundžių"
+  },
+  "detailed_analysis": {
+    "strongest_correlation": {
+      "parameters": "temperatura ↔ dregme",
+      "value": -0.895328861165316,
+      "interpretation": "Neigiama korelacija - didėjant temperatūrai, mažėja drėgmė"
+    },
+    "weather_extremes": {
+      "highest_temp": {
+        "value": 24.7,
+        "time": "2025-08-09T17:00:00+03:00"
+      },
+      "lowest_temp": {
+        "value": 11.5,
+        "time": "2025-08-09T06:00:00+03:00"
+      },
+      "strongest_wind": {
+        "value": 5.0,
+        "time": "2025-08-11T12:00:00+03:00"
+      }
+    }
+  },
+  "data_quality": {
+    "overall_score": 100,
+    "score_explanation": "100/100 - Puiku",
+    "missing_data_count": 0,
+    "data_completeness": "100%"
+  }
+}

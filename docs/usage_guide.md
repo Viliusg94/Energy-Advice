@@ -1,882 +1,878 @@
-﻿# Naudojimo vadovas  Lietuvos oro duomenÅ³ analizÄ—s sistema
+﻿# Naudojimo vadovas - Lietuvos oro duomenų analizės sistema
 
-## ApÅ¾valga
+## Turinys
 
-Å is vadovas apraÅo kaip naudoti Lietuvos oro duomenÅ³ analizÄ—s sistemÄ… praktiniams tikslams. Sistema skirta oro duomenÅ³ nuskaitymui iÅ meteo.lt API, jÅ³ analizei ir vizualizacijai.
+1. [Greitas startas](#greitas-startas)
+2. [Pagrindinės funkcijos](#pagrindinės-funkcijos)
+3. [Praktiniai pavyzdžiai](#praktiniai-pavyzdžiai)
+4. [Pažengusiems naudotojams](#pažengusiems-naudotojams)
+5. [Dažniausi klausimai](#dažniausi-klausimai)
+6. [Trikčių šalinimas](#trikčių-šalinimas)
 
-## Greitasis startas
+## Greitas startas
 
-### 1. Paprasta analizÄ—
+### 1. Programos paleidimas 
 
-```python
-# Importuokite reikalingas klases
-from src.weather_api import WeatherAPI
-from src.data_analysis import WeatherAnalyzer
+```bash
+# Aktyvuokite virtual environment
+source weather_env/bin/activate  # macOS/Linux
+weather_env\Scripts\activate     # Windows
 
-# Sukurkite API objektÄ…
-api = WeatherAPI("vilnius")
-
-# Nuskaitykite paskutinÄ—s savaitÄ—s duomenis
-from datetime import datetime, timedelta
-end_date = datetime.now().strftime("%Y%m%d")
-start_date = (datetime.now()  timedelta(days=7)).strftime("%Y%m%d")
-
-data = api.get_historical_data(start_date, end_date)
-
-# Atlikite analizÄ™
-analyzer = WeatherAnalyzer(data)
-results = analyzer.calculate_annual_averages()
-
-print(f"VidutinÄ— temperatÅ«ra: {results['average_temperature']:.1f}Ā°C")
+# Paleiskite pagrindinę programą
+python main.py
 ```
 
-### 2. Grafiko kÅ«rimas
+Programa automatiškai:
+- Prisijungs prie meteo.lt API
+- Parsisiųs paskutinių 30 dienų oro duomenis Vilniui
+- Atliks išsamią analizę
+- Sukurs vizualizacijas `plots/` kataloge
+- Išsaugos duomenis `data/` kataloge
 
+### 2. Interaktyvus režimas
+
+```bash
+python main.py
+```
+
+Programos menu:
+```
+1. Standartinė analizė (Vilnius)
+2. Kelių miestų palyginimas  
+3. Išeiti
+```
+
+## Pagrindinės funkcijos
+
+### API duomenų gavimas
+
+#### Istoriniai duomenys
 ```python
-from src.visualization import WeatherVisualizer
+from src.weather_api import WeatherAPI
+from datetime import datetime, timedelta
 
-# Sukurkite vizualizacijos objektÄ…
-visualizer = WeatherVisualizer("my_plots")
+# Sukuriamas API objektas
+api = WeatherAPI('vilnius')
 
-# Sukurkite temperatÅ«ros grafikÄ…
-visualizer.plot_temperature_trend(
-    historical_data=data,
-    title="Vilniaus temperatÅ«ra (paskutinÄ— savaitÄ—)"
+# Nustatomas datos intervalas
+end_date = datetime.now()
+start_date = end_date - timedelta(days=7)
+
+# Gaunami duomenys
+data = api.get_historical_data(
+    start_date.strftime('%Y-%m-%d'),
+    end_date.strftime('%Y-%m-%d')
 )
+
+print(f"Gauti duomenys: {len(data)} įrašų")
+print(data.head())
 ```
 
-## DetalÅ«s naudojimo scenarijai
+#### Prognozės duomenys
+```python
+# Gauti 5 dienų prognozę
+forecast = api.get_forecast_data(days=5)
 
-### Scenarijus 1: MÄ—nesio oro analizÄ—
+if forecast is not None:
+    print("Ateities temperatūros:")
+    print(forecast['temperatura'].head(10))
+```
+
+#### Dabartiniai duomenys
+```python
+current = api.get_current_weather()
+if current:
+    print(f"Dabar: {current.get('airTemperature', 'N/A')}°C")
+    print(f"Drėgmė: {current.get('relativeHumidity', 'N/A')}%")
+```
+
+### Duomenų analizė
+
+#### Metiniai vidurkiai
+```python
+from src.data_analysis import WeatherAnalyzer
+
+analyzer = WeatherAnalyzer(historical_data, forecast_data)
+averages = analyzer.calculate_yearly_averages()
+
+print("METINIAI VIDURKIAI:")
+for param, value in averages.items():
+    print(f"  {param.replace('_', ' ').title()}: {value}")
+```
+
+#### Dienos ir nakties analizė
+```python
+day_night = analyzer.analyze_day_night_temperature()
+
+print("\nDIENOS/NAKTIES TEMPERATŪRA:")
+if 'vidutinė_dienos_temperatūra' in day_night:
+    print(f"  Dienos vidurkis: {day_night['vidutinė_dienos_temperatūra']:.1f}°C")
+if 'vidutinė_nakties_temperatūra' in day_night:  
+    print(f"  Nakties vidurkis: {day_night['vidutinė_nakties_temperatūra']:.1f}°C")
+if 'dienos_nakties_skirtumas' in day_night:
+    print(f"  Skirtumas: {day_night['dienos_nakties_skirtumas']:.1f}°C")
+```
+
+#### Savaitgalių lietaus prognozė
+```python
+weekend_rain = analyzer.analyze_weekend_rain_forecast()
+
+print("\nSAVAITGALIŲ LIETAUS PROGNOZĖ:")
+print(f"  Iš viso savaitgalių: {weekend_rain.get('savaitgalių_skaičius', 0)}")
+print(f"  Su lietumi: {weekend_rain.get('savaitgaliai_su_lietumi', 0)}")
+print(f"  Tikimybė: {weekend_rain.get('lietaus_tikimybė_procentais', 0)}%")
+
+# Detali informacija
+for detail in weekend_rain.get('savaitgalių_detalizacija', []):
+    status = "Lietingas" if detail['lietaus_prognozė'] else "Sausas"
+    print(f"  {detail['data']}: {status} ({detail['vidutiniai_krituliai']} mm)")
+```
+
+### Vizualizacija
+
+#### Temperatūros grafikas
+```python
+from src.visualization import WeatherVisualizer
+
+visualizer = WeatherVisualizer(historical_data, forecast_data)
+
+# Temperatūros tendencijų grafikas
+temp_plot = visualizer.plot_temperature_trend(days_back=14, forecast_days=7)
+print(f"Temperatūros grafikas: {temp_plot}")
+```
+
+#### Oro sąlygų dashboard
+```python
+# 4-in-1 dashboard su visais parametrais
+dashboard = visualizer.create_weather_dashboard()
+print(f"Dashboard: {dashboard}")
+```
+
+#### Koreliacijos matrica
+```python
+correlations = analyzer.calculate_correlations()
+heatmap = visualizer.plot_correlation_heatmap(correlations)
+print(f"Koreliacijos matrica: {heatmap}")
+```
+
+#### Kritulių analizė
+```python
+precipitation_plot = visualizer.plot_precipitation_analysis()
+print(f"Kritulių analizė: {precipitation_plot}")
+```
+
+### Temperatūros interpoliacija
+
+#### Pagrindinė interpoliacija
+```python
+from src.interpolation import TemperatureInterpolator
+
+# Sukuriamas interpoliatorius
+interpolator = TemperatureInterpolator(historical_data['temperatura'])
+
+# Tiesinė interpoliacija iki 5 min dažnio
+interpolated = interpolator.interpolate_to_5min('linear')
+
+print(f"Originalūs duomenys: {len(historical_data)} taškų")
+print(f"Interpoliuoti: {len(interpolated)} taškų")
+print(f"Tankumas padidėjo: {len(interpolated) / len(historical_data):.1f}x")
+```
+
+#### Metodų palyginimas
+```python
+# Palyginti visus metodus
+comparison = interpolator.compare_methods()
+
+print("\nINTERPOLIACIJOS METODŲ PALYGINIMAS:")
+for method, results in comparison['metodų_palyginimas'].items():
+    if 'klaida' not in results:
+        print(f"  {method.upper()}:")
+        print(f"    Taškai: {results['taškų_skaičius']}")
+        print(f"    Laikas: {results['interpoliacijos_laikas_s']}s")
+        
+        metrics = results.get('kokybės_metrikos', {})
+        if 'vidurkis' in metrics:
+            print(f"    Vidurkis: {metrics['vidurkis']}°C")
+```
+
+#### Interpoliacijos validavimas
+```python
+# Validuoti interpoliacijos tikslumą
+validation = interpolator.validate_interpolation(test_ratio=0.15)
+
+print("\nVALIDACIJOS REZULTATAI:")
+for method, results in validation['metodų_validacija'].items():
+    if 'klaida' not in results:
+        print(f"  {method.upper()}:")
+        print(f"    MAE: {results['vidutinė_absoliuti_klaida']:.3f}°C")
+        print(f"    RMSE: {results['šaknies_kvadratinė_klaida']:.3f}°C")
+        print(f"    Max klaida: {results['maksimali_klaida']:.3f}°C")
+```
+
+#### Duomenų eksportavimas
+```python
+# Išsaugoti interpoliuotus duomenis
+success = interpolator.export_interpolated_data('data/temp_5min.csv', 'csv')
+if success:
+    print("Duomenys išsaugoti: data/temp_5min.csv")
+    
+# Įvairi formatai
+interpolator.export_interpolated_data('data/temp_5min.xlsx', 'excel')
+interpolator.export_interpolated_data('data/temp_5min.json', 'json')
+```
+
+## Praktiniai pavyzdžiai
+
+### Pavyzdys 1: Savaitės oro analizė
 
 ```python
-import pandas as pd
-from datetime import datetime, timedelta
 from src.weather_api import WeatherAPI
 from src.data_analysis import WeatherAnalyzer
 from src.visualization import WeatherVisualizer
+from datetime import datetime, timedelta
 
-def analyze_monthly_weather(city="vilnius", year=2024, month=1):
-    """
-    Analizuoja mÄ—nesio oro duomenis
-    """
-    # Nustatome mÄ—nesio datas
-    start_date = f"{year}{month:02d}01"
-    if month == 12:
-        end_date = f"{year+1}0101"
-    else:
-        end_date = f"{year}{month+1:02d}01"
+def weekly_weather_analysis():
+    """Savaitės oro sąlygų analizė"""
     
-    # API uÅ¾klausa
-    api = WeatherAPI(city)
-    data = api.get_historical_data(start_date, end_date)
+    # 1. Gauti duomenis
+    api = WeatherAPI('vilnius')
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=7)
     
-    if data is None or data.empty:
-        print(f"NÄ—ra duomenÅ³ {year}{month:02d} mÄ—nesiui")
-        return None
+    data = api.get_historical_data(
+        start_date.strftime('%Y-%m-%d'),
+        end_date.strftime('%Y-%m-%d')
+    )
     
-    # AnalizÄ—
+    if data is None:
+        print("Nepavyko gauti duomenų")
+        return
+        
+    # 2. Analizė
     analyzer = WeatherAnalyzer(data)
     
-    # ApskaiÄ¨iuojame statistikas
-    monthly_stats = {
-        'vidurkiai': analyzer.calculate_annual_averages(),
-        'dienos_naktis': analyzer.analyze_day_night_temperature(),
-        'duomenu_skaicius': len(data)
+    # Temperatūros statistikos
+    temp_stats = {
+        'vidurkis': data['temperatura'].mean(),
+        'maksimumas': data['temperatura'].max(),
+        'minimumas': data['temperatura'].min(),
+        'standartinis_nuokrypis': data['temperatura'].std()
     }
     
-    # Vizualizacija
-    visualizer = WeatherVisualizer("monthly_plots")
+    print("SAVAITĖS TEMPERATŪROS STATISTIKOS:")
+    for key, value in temp_stats.items():
+        print(f"  {key.title()}: {value:.1f}°C")
+        
+    # Lietingi periodai
+    rainy_periods = data[data['krituliai'] > 0]
+    rain_hours = len(rainy_periods)
+    rain_percentage = (rain_hours / len(data)) * 100
     
-    # Detalus oro sÄ…lygÅ³ dashboard
-    dashboard_path = visualizer.plot_weather_dashboard(
-        data, 
-        title=f"{city.title()} oro sÄ…lygos  {year}{month:02d}",
-        save_file=f"weather_{city}_{year}_{month:02d}.png"
-    )
+    print(f"\nKRITULIŲ STATISTIKA:")
+    print(f"  Lietingų valandų: {rain_hours} iš {len(data)}")
+    print(f"  Procentualiai: {rain_percentage:.1f}%")
+    print(f"  Bendras kritulių kiekis: {data['krituliai'].sum():.1f}mm")
     
-    # Koreliacijos analizÄ—
-    corr_path = visualizer.plot_correlation_matrix(
-        data,
-        title=f"Oro parametrÅ³ koreliacija  {city.title()}",
-        save_file=f"correlation_{city}_{year}_{month:02d}.png"
-    )
+    # 3. Vizualizacija
+    visualizer = WeatherVisualizer(data)
+    plots = [
+        visualizer.create_weather_dashboard(),
+        visualizer.plot_precipitation_analysis()
+    ]
     
-    return {
-        'data': data,
-        'statistics': monthly_stats,
-        'plots': [dashboard_path, corr_path]
-    }
+    print(f"\nSukurti grafikai:")
+    for plot in plots:
+        if plot:
+            print(f"  - {plot}")
 
-# Naudojimo pavyzdys
-results = analyze_monthly_weather("vilnius", 2024, 1)
-if results:
-    print("MÄ—nesio analizÄ— baigta!")
-    print(f"DuomenÅ³ ÄÆraÅÅ³: {results['statistics']['duomenu_skaicius']}")
-    print(f"Vid. temperatÅ«ra: {results['statistics']['vidurkiai']['average_temperature']:.1f}Ā°C")
+# Paleisti analizę
+weekly_weather_analysis()
 ```
 
-### Scenarijus 2: MiestÅ³ palyginimas
+### Pavyzdys 2: Miestų palyginimas
 
 ```python
-def compare_cities(cities=["vilnius", "kaunas", "klaipeda"], days=30):
-    """
-    Palygina skirtingÅ³ miestÅ³ oro sÄ…lygas
-    """
-    from datetime import datetime, timedelta
-    import matplotlib.pyplot as plt
-    
-    end_date = datetime.now().strftime("%Y%m%d")
-    start_date = (datetime.now()  timedelta(days=days)).strftime("%Y%m%d")
+def compare_cities(cities=['vilnius', 'kaunas', 'klaipeda'], days=14):
+    """Kelių miestų oro sąlygų palyginimas"""
     
     city_data = {}
     city_stats = {}
     
-    # Nuskaitome duomenis visiems miestams
+    print(f"Lyginami miestai: {', '.join(cities)}")
+    print("Nuskaitomi duomenys...")
+    
+    # Gauti duomenis visiems miestams
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=days)
+    
     for city in cities:
-        print(f"Nuskaitome {city} duomenis...")
-        
-        api = WeatherAPI(city)
-        data = api.get_historical_data(start_date, end_date)
-        
-        if data is not None and not data.empty:
-            analyzer = WeatherAnalyzer(data)
-            stats = analyzer.calculate_annual_averages()
+        try:
+            api = WeatherAPI(city)
+            data = api.get_historical_data(
+                start_date.strftime('%Y-%m-%d'),
+                end_date.strftime('%Y-%m-%d')
+            )
             
-            city_data[city] = data
-            city_stats[city] = stats
-            print(f"ā… {city}: {len(data)} ÄÆraÅÅ³")
-        else:
-            print(f"ā¯ {city}: NÄ—ra duomenÅ³")
+            if data is not None and not data.empty:
+                city_data[city] = data
+                
+                # Apskaičiuoti statistikas
+                city_stats[city] = {
+                    'vidutinė_temperatūra': data['temperatura'].mean(),
+                    'vidutinė_drėgmė': data['dregme'].mean(),
+                    'vidutinis_vėjas': data['vejo_greitis'].mean(),
+                    'kritulių_suma': data['krituliai'].sum(),
+                    'duomenų_kiekis': len(data)
+                }
+                
+                print(f"  {city.title()}: {len(data)} įrašų")
+            else:
+                print(f"  {city.title()}: Nepavyko gauti duomenų")
+                
+        except Exception as e:
+            print(f"  {city.title()}: Klaida - {e}")
     
-    # Sukuriame palyginimo grafikÄ…
+    # Atspausdinti palyginimą
     if city_stats:
-        plt.figure(figsize=(15, 10))
+        print("\nMIESTŲ PALYGINIMAS:")
+        print(f"{'Miestas':<12} {'Temp°C':<8} {'Drėgmė%':<8} {'Vėjas m/s':<10} {'Krituliai mm':<12}")
+        print("-" * 50)
         
-        # 2x2 subplot'ai palyginimui
-        fig, axes = plt.subplots(2, 2, figsize=(16, 12))
-        fig.suptitle(f'MiestÅ³ oro sÄ…lygÅ³ palyginimas ({days} dienÅ³)', fontsize=16)
-        
-        # TemperatÅ«ros palyginimas
-        ax = axes[0, 0]
-        temps = [city_stats[city].get('average_temperature', 0) for city in cities if city in city_stats]
-        city_names = [city.title() for city in cities if city in city_stats]
-        bars = ax.bar(city_names, temps, color=['blue', 'green', 'red', 'orange', 'purple'][:len(city_names)])
-        ax.set_title('VidutinÄ— temperatÅ«ra')
-        ax.set_ylabel('Ā°C')
-        
-        # Pridedame reikÅmes ant stulpeliÅ³
-        for bar, temp in zip(bars, temps):
-            height = bar.get_height()
-            ax.text(bar.get_x() + bar.get_width()/2., height + 0.1,
-                   f'{temp:.1f}Ā°C', ha='center', va='bottom')
-        
-        # DrÄ—gmÄ—s palyginimas
-        ax = axes[0, 1]
-        humidity = [city_stats[city].get('average_humidity', 0) for city in cities if city in city_stats]
-        bars = ax.bar(city_names, humidity, color=['lightblue', 'lightgreen', 'lightcoral', 'lightyellow', 'plum'][:len(city_names)])
-        ax.set_title('VidutinÄ— drÄ—gmÄ—')
-        ax.set_ylabel('%')
-        
-        for bar, hum in zip(bars, humidity):
-            height = bar.get_height()
-            ax.text(bar.get_x() + bar.get_width()/2., height + 0.5,
-                   f'{hum:.1f}%', ha='center', va='bottom')
-        
-        # VÄ—jo greiÄ¨io palyginimas
-        ax = axes[1, 0]
-        wind_speeds = [city_stats[city].get('average_wind_speed', 0) for city in cities if city in city_stats]
-        bars = ax.bar(city_names, wind_speeds, color=['skyblue', 'lightsteelblue', 'powderblue', 'lightcyan', 'azure'][:len(city_names)])
-        ax.set_title('Vidutinis vÄ—jo greitis')
-        ax.set_ylabel('m/s')
-        
-        for bar, wind in zip(bars, wind_speeds):
-            height = bar.get_height()
-            ax.text(bar.get_x() + bar.get_width()/2., height + 0.05,
-                   f'{wind:.1f}', ha='center', va='bottom')
-        
-        # SlÄ—gio palyginimas
-        ax = axes[1, 1]
-        pressures = [city_stats[city].get('average_pressure', 0) for city in cities if city in city_stats]
-        bars = ax.bar(city_names, pressures, color=['mediumpurple', 'mediumorchid', 'mediumslateblue', 'mediumturquoise', 'mediumseagreen'][:len(city_names)])
-        ax.set_title('Vidutinis slÄ—gis')
-        ax.set_ylabel('hPa')
-        
-        for bar, press in zip(bars, pressures):
-            height = bar.get_height()
-            ax.text(bar.get_x() + bar.get_width()/2., height + 1,
-                   f'{press:.0f}', ha='center', va='bottom')
-        
-        plt.tight_layout()
-        plt.savefig(f'city_comparison_{days}days.png', dpi=300, bbox_inches='tight')
-        plt.show()
-        
-        # Spausdiname detalizuotÄ… palyginimÄ…
-        print(f"\nš“ MIESTÅ² PALYGINIMAS ({days} dienÅ³):")
-        print("=" * 60)
-        
-        for city in cities:
-            if city in city_stats:
-                stats = city_stats[city]
-                print(f"\nš¸™ļø¸ {city.upper()}:")
-                print(f"   šļø¸ TemperatÅ«ra: {stats.get('average_temperature', 0):.1f}Ā°C")
-                print(f"   š’§ DrÄ—gmÄ—: {stats.get('average_humidity', 0):.1f}%")
-                print(f"   š’Ø VÄ—jo greitis: {stats.get('average_wind_speed', 0):.1f} m/s")
-                print(f"   š“ SlÄ—gis: {stats.get('average_pressure', 0):.0f} hPa")
+        for city, stats in city_stats.items():
+            print(f"{city.title():<12} "
+                  f"{stats['vidutinė_temperatūra']:<8.1f} "
+                  f"{stats['vidutinė_drėgmė']:<8.1f} "
+                  f"{stats['vidutinis_vėjas']:<10.1f} "
+                  f"{stats['kritulių_suma']:<12.1f}")
     
+    # Vizualizacija
+    if len(city_data) > 1:
+        visualizer = WeatherVisualizer()
+        comparison_plot = visualizer.plot_city_comparison(city_data)
+        if comparison_plot:
+            print(f"\nMiestų palyginimo grafikas: {comparison_plot}")
+            
     return city_data, city_stats
 
-# Naudojimo pavyzdys
-city_data, city_stats = compare_cities(["vilnius", "kaunas", "klaipeda"], days=7)
+# Paleisti palyginimą
+cities_data, cities_stats = compare_cities(['vilnius', 'kaunas', 'klaipeda'])
 ```
 
-### Scenarijus 3: TemperatÅ«ros prognozÄ—s su interpoliacija
+### Pavyzdys 3: Temperatūros prognozės tikslumą
 
 ```python
-def detailed_temperature_forecast(city="vilnius", interpolation_freq="5T"):
-    """
-    Detalios temperatÅ«ros prognozÄ—s su interpoliacija
-    """
-    from src.weather_api import WeatherAPI
-    from src.data_analysis import WeatherAnalyzer
-    from src.interpolation import TemperatureInterpolator
-    from src.visualization import WeatherVisualizer
-    import matplotlib.pyplot as plt
+def forecast_accuracy_analysis():
+    """Analizuoti prognozės tikslumą lyginant su faktiniais duomenimis"""
     
-    # Nuskaitome duomenis
-    api = WeatherAPI(city)
+    api = WeatherAPI('vilnius')
     
-    # PaskutinÄ—s 3 dienos istoriniÅ³ duomenÅ³
-    from datetime import datetime, timedelta
-    end_date = datetime.now().strftime("%Y%m%d")
-    start_date = (datetime.now()  timedelta(days=3)).strftime("%Y%m%d")
+    # Gauti senos prognozės duomenis (pvz., praėjusią savaitę)
+    # Tikrame projekte reikėtų saugoti senas prognozes
     
-    historical = api.get_historical_data(start_date, end_date)
-    forecast = api.get_forecast_data()
+    # Gauti faktinius duomenis paskutinėms dienoms
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=3)
     
-    if historical is None or historical.empty:
-        print("NÄ—ra istoriniÅ³ duomenÅ³")
-        return None
+    actual_data = api.get_historical_data(
+        start_date.strftime('%Y-%m-%d'),
+        end_date.strftime('%Y-%m-%d')
+    )
     
-    # Interpoliacija paskutinÄ—s dienos duomenims
-    interpolator = TemperatureInterpolator()
-    
-    if 'airTemperature' in historical.columns:
-        # Pasiimame paskutinÄ—s 24h duomenis
-        last_24h = historical.tail(24)
-        temp_series = last_24h['airTemperature'].dropna()
+    if actual_data is None:
+        print("Nepavyko gauti faktinių duomenų")
+        return
         
-        if not temp_series.empty:
-            print(f"Interpoliuojame temperatÅ«ros duomenis...")
-            
-            # Palyginame skirtingus metodus
-            methods_comparison = interpolator.compare_interpolation_methods(
-                temp_series, 
-                target_frequency=interpolation_freq
-            )
-            
-            # Paimame geriausiÄ… metodÄ…
-            best_method = methods_comparison.get('recommended_method', 'linear')
-            
-            # Interpoliuojame
-            interpolated_stats = interpolator.interpolate_with_statistics(
-                temp_series,
-                target_frequency=interpolation_freq,
-                method=best_method
-            )
-            
-            interpolated_temp = interpolated_stats['interpolated_data']
-            
-            # Vizualizacija
-            plt.figure(figsize=(18, 12))
-            
-            # Sukuriame 3 subplot'us
-            gs = plt.GridSpec(3, 1, height_ratios=[2, 1, 1])
-            
-            # 1. TemperatÅ«ros tendencija su prognoze
-            ax1 = plt.subplot(gs[0])
-            
-            # Istoriniai duomenys
-            ax1.plot(historical.index, historical['airTemperature'], 
-                    'o', linewidth=2, markersize=4, color='blue', 
-                    label=f'Istoriniai duomenys ({len(historical)} taÅkai)')
-            
-            # Interpoliuoti duomenys
-            if interpolated_temp is not None:
-                ax1.plot(interpolated_temp.index, interpolated_temp.values, 
-                        '', linewidth=1, color='lightblue', alpha=0.7,
-                        label=f'Interpoliuoti ({len(interpolated_temp)} taÅkai)')
-            
-            # PrognozÄ—s duomenys
-            if forecast is not None and not forecast.empty:
-                temp_col = None
-                for col in ['airTemperature', 'temperature']:
-                    if col in forecast.columns:
-                        temp_col = col
-                        break
-                
-                if temp_col:
-                    ax1.plot(forecast.index, forecast[temp_col], 
-                            's', linewidth=2, markersize=4, color='red', 
-                            label=f'PrognozÄ— ({len(forecast)} taÅkai)')
-            
-            ax1.set_title(f'{city.title()} temperatÅ«ros analizÄ— ir prognozÄ—', fontsize=14, fontweight='bold')
-            ax1.set_ylabel('TemperatÅ«ra (Ā°C)')
-            ax1.legend()
-            ax1.grid(True, alpha=0.3)
-            
-            # 2. Interpoliacijos metodÅ³ palyginimas
-            ax2 = plt.subplot(gs[1])
-            
-            if methods_comparison and 'methods' in methods_comparison:
-                methods = list(methods_comparison['methods'].keys())
-                improvements = []
-                
-                for method in methods:
-                    method_stats = methods_comparison['methods'][method]
-                    if method_stats['interpolated_data'] is not None:
-                        improvements.append(method_stats['improvement_ratio'])
-                    else:
-                        improvements.append(0)
-                
-                bars = ax2.bar(methods, improvements, color=['skyblue', 'lightgreen', 'lightcoral', 'lightyellow'])
-                ax2.set_title('Interpoliacijos metodÅ³ efektyvumas')
-                ax2.set_ylabel('PagerÄ—jimo santykis')
-                
-                # PaÅ¾ymime geriausiÄ… metodÄ…
-                best_idx = methods.index(best_method) if best_method in methods else 0
-                bars[best_idx].set_color('gold')
-                bars[best_idx].set_edgecolor('orange')
-                bars[best_idx].set_linewidth(2)
-            
-            # 3. Statistikos palyginimas
-            ax3 = plt.subplot(gs[2])
-            
-            # OriginalÅ«s vs interpoliuoti statistikos
-            orig_stats = [temp_series.mean(), temp_series.std(), temp_series.min(), temp_series.max()]
-            
-            if interpolated_temp is not None:
-                interp_stats = [interpolated_temp.mean(), interpolated_temp.std(), 
-                              interpolated_temp.min(), interpolated_temp.max()]
-            else:
-                interp_stats = orig_stats
-            
-            x = ['Vidurkis', 'Std. nuokrypis', 'Min', 'Max']
-            x_pos = range(len(x))
-            
-            width = 0.35
-            ax3.bar([p  width/2 for p in x_pos], orig_stats, width, 
-                   label='OriginalÅ«s', color='blue', alpha=0.7)
-            ax3.bar([p + width/2 for p in x_pos], interp_stats, width,
-                   label='Interpoliuoti', color='red', alpha=0.7)
-            
-            ax3.set_title('Statistikos palyginimas')
-            ax3.set_ylabel('TemperatÅ«ra (Ā°C)')
-            ax3.set_xticks(x_pos)
-            ax3.set_xticklabels(x)
-            ax3.legend()
-            
-            plt.tight_layout()
-            plt.savefig(f'detailed_forecast_{city}.png', dpi=300, bbox_inches='tight')
-            plt.show()
-            
-            # Spausdiname analizÄ—s rezultatus
-            print(f"\nšˇÆ DETALI TEMPERATÅŖROS ANALIZÄ–  {city.upper()}")
-            print("=" * 50)
-            
-            print(f"\nš“ INTERPOLIACIJOS REZULTATAI:")
-            print(f"   š”¢ OriginalÅ«s taÅkai: {interpolated_stats['original_points']}")
-            print(f"   š”¢ Interpoliuoti taÅkai: {interpolated_stats['interpolated_points']}")
-            print(f"   š“ PagerÄ—jimas: {interpolated_stats['improvement_ratio']:.1f}x")
-            print(f"   š”§ Geriausias metodas: {best_method}")
-            print(f"   ā¸° DaÅ¾nis: {interpolation_freq}")
-            
-            print(f"\nšļø¸ TEMPERATÅŖROS STATISTIKA:")
-            print(f"   š“ OriginalÅ«s duomenys:")
-            print(f"      Vidurkis: {interpolated_stats['original_mean']:.2f}Ā°C")
-            print(f"      MinMax: {interpolated_stats['original_min']:.1f}Ā°C  {interpolated_stats['original_max']:.1f}Ā°C")
-            
-            if interpolated_temp is not None:
-                print(f"   š“ Interpoliuoti duomenys:")
-                print(f"      Vidurkis: {interpolated_stats['interpolated_mean']:.2f}Ā°C")
-                print(f"      MinMax: {interpolated_stats['interpolated_min']:.1f}Ā°C  {interpolated_stats['interpolated_max']:.1f}Ā°C")
-            
-            return {
-                'historical': historical,
-                'forecast': forecast,
-                'interpolated': interpolated_temp,
-                'interpolation_stats': interpolated_stats,
-                'methods_comparison': methods_comparison
-            }
+    # Gauti dabartinę prognozę
+    current_forecast = api.get_forecast_data(days=7)
     
-    return None
+    if current_forecast is None:
+        print("Nepavyko gauti prognozės")
+        return
+        
+    print("PROGNOZĖS ANALIZĖ:")
+    print(f"Faktiniai duomenys: {len(actual_data)} įrašų")
+    print(f"Prognozės duomenys: {len(current_forecast)} įrašų")
+    
+    # Analizuoti temperatūros tendencijas
+    if not actual_data.empty and not current_forecast.empty:
+        actual_trend = actual_data['temperatura'].diff().mean()
+        forecast_trend = current_forecast['temperatura'].diff().mean()
+        
+        print(f"\nTEMPERATŪROS TENDENCIJOS:")
+        print(f"  Faktinė tendencija: {actual_trend:.3f}°C/val")
+        print(f"  Prognozės tendencija: {forecast_trend:.3f}°C/val")
+        
+        # Prognozės vizualizacija
+        visualizer = WeatherVisualizer(actual_data, current_forecast)
+        forecast_plot = visualizer.plot_temperature_trend(days_back=3, forecast_days=7)
+        print(f"\nPrognozės grafikas: {forecast_plot}")
 
-# Naudojimo pavyzdys
-results = detailed_temperature_forecast("vilnius", "10T")
+forecast_accuracy_analysis()
 ```
 
-### Scenarijus 4: Automatizuotas ataskaitos generavimas
+### Pavyzdys 4: Automatizuota kasdienė ataskaita
 
 ```python
-def generate_weather_report(city="vilnius", days=7, output_format="html"):
-    """
-    Sukuria automatizuotÄ… oro sÄ…lygÅ³ ataskaitÄ…
-    """
-    import json
-    from datetime import datetime, timedelta
+import json
+from datetime import datetime
+
+def daily_weather_report(city='vilnius', save_to_file=True):
+    """Automatizuota kasdienė oro ataskaita"""
     
-    # DuomenÅ³ surinkimas
     api = WeatherAPI(city)
     
-    end_date = datetime.now().strftime("%Y%m%d")
-    start_date = (datetime.now()  timedelta(days=days)).strftime("%Y%m%d")
+    # Gauti šiandien duomenis
+    today = datetime.now().strftime('%Y-%m-%d')
+    yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
     
-    historical = api.get_historical_data(start_date, end_date)
-    forecast = api.get_forecast_data()
-    current = api.get_current_conditions()
+    historical = api.get_historical_data(yesterday, today)
+    forecast = api.get_forecast_data(days=3)
+    current = api.get_current_weather()
     
-    if historical is None or historical.empty:
-        print("NÄ—ra duomenÅ³ ataskaitos kÅ«rimui")
-        return None
+    # Sukurti ataskaitos žodyną
+    report = {
+        'ataskaitos_data': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'miestas': city.title(),
+        'dabartiniai_duomenys': current,
+        'vakar_statistikos': {},
+        'prognozė_3_dienoms': {}
+    }
     
-    # AnalizÄ—
-    analyzer = WeatherAnalyzer(historical, forecast)
-    
-    report_data = {
-        'meta': {
-            'city': city.title(),
-            'report_date': datetime.now().isoformat(),
-            'data_period': f"{start_date}  {end_date}",
-            'report_days': days
-        },
-        'data_summary': {
-            'historical_records': len(historical),
-            'forecast_records': len(forecast) if forecast is not None else 0,
-            'data_coverage': (len(historical) / (days * 24)) * 100  # Assuming hourly data
-        },
-        'current_conditions': current,
-        'analysis': {
-            'averages': analyzer.calculate_annual_averages(),
-            'day_night': analyzer.analyze_day_night_temperature(),
-            'extremes': {
-                'max_temp': historical['airTemperature'].max() if 'airTemperature' in historical.columns else None,
-                'min_temp': historical['airTemperature'].min() if 'airTemperature' in historical.columns else None,
-                'max_wind': historical['windSpeed'].max() if 'windSpeed' in historical.columns else None,
-                'max_humidity': historical['relativeHumidity'].max() if 'relativeHumidity' in historical.columns else None
+    # Vakarykščių duomenų analizė
+    if historical is not None and not historical.empty:
+        yesterday_data = historical[historical.index.date == datetime.strptime(yesterday, '%Y-%m-%d').date()]
+        
+        if not yesterday_data.empty:
+            report['vakar_statistikos'] = {
+                'vidutinė_temperatūra': round(yesterday_data['temperatura'].mean(), 1),
+                'maksimali_temperatūra': round(yesterday_data['temperatura'].max(), 1),
+                'minimali_temperatūra': round(yesterday_data['temperatura'].min(), 1),
+                'kritulių_suma': round(yesterday_data['krituliai'].sum(), 1),
+                'vidutinė_drėgmė': round(yesterday_data['dregme'].mean(), 1)
             }
+    
+    # Prognozės suvestinė
+    if forecast is not None and not forecast.empty:
+        report['prognozė_3_dienoms'] = {
+            'vidutinė_temperatūra': round(forecast['temperatura'].mean(), 1),
+            'maksimali_temperatūra': round(forecast['temperatura'].max(), 1),
+            'minimali_temperatūra': round(forecast['temperatura'].min(), 1),
+            'lietaus_tikimybė': "Taip" if forecast['krituliai'].sum() > 0 else "Ne",
+            'kritulių_suma': round(forecast['krituliai'].sum(), 1)
+        }
+    
+    # Atspausdinti ataskaitą
+    print(f"\n{'='*50}")
+    print(f"KASDIENĖ ORO ATASKAITA - {report['miestas'].upper()}")
+    print(f"Data: {report['ataskaitos_data']}")
+    print(f"{'='*50}")
+    
+    if current:
+        print(f"\nDABARTINIAI DUOMENYS:")
+        print(f"  Temperatūra: {current.get('airTemperature', 'N/A')}°C")
+        print(f"  Drėgmė: {current.get('relativeHumidity', 'N/A')}%")
+        print(f"  Vėjas: {current.get('windSpeed', 'N/A')} m/s")
+    
+    if report['vakar_statistikos']:
+        print(f"\nVAKAR STATISTIKOS:")
+        stats = report['vakar_statistikos']
+        print(f"  Temperatūra: {stats['minimali_temperatūra']}°C - {stats['maksimali_temperatūra']}°C (vid. {stats['vidutinė_temperatūra']}°C)")
+        print(f"  Krituliai: {stats['kritulių_suma']} mm")
+        print(f"  Drėgmė: {stats['vidutinė_drėgmė']}%")
+    
+    if report['prognozė_3_dienoms']:
+        print(f"\nPROGNOZĖ 3 DIENOMS:")
+        prog = report['prognozė_3_dienoms']
+        print(f"  Temperatūra: {prog['minimali_temperatūra']}°C - {prog['maksimali_temperatūra']}°C")
+        print(f"  Lietaus: {prog['lietaus_tikimybė']} ({prog['kritulių_suma']} mm)")
+    
+    # Išsaugoti į failą
+    if save_to_file:
+        filename = f"data/daily_report_{city}_{datetime.now().strftime('%Y%m%d')}.json"
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(report, f, indent=2, ensure_ascii=False, default=str)
+        print(f"\nAtaskaita išsaugota: {filename}")
+    
+    return report
+
+# Paleisti kasdienę ataskaitą
+daily_report = daily_weather_report('vilnius')
+```
+
+## Pažengusiems naudotojams
+
+### Custom analizės funkcijos
+
+```python
+def custom_temperature_analysis(data, threshold_hot=25, threshold_cold=0):
+    """Pasirinktinė temperatūros analizė su slenksčiais"""
+    
+    if 'temperatura' not in data.columns:
+        return {}
+        
+    hot_periods = data[data['temperatura'] > threshold_hot]
+    cold_periods = data[data['temperatura'] < threshold_cold]
+    comfortable_periods = data[
+        (data['temperatura'] >= threshold_cold) & 
+        (data['temperatura'] <= threshold_hot)
+    ]
+    
+    total_hours = len(data)
+    
+    analysis = {
+        'karšti_periodai': {
+            'valandos': len(hot_periods),
+            'procentas': (len(hot_periods) / total_hours) * 100,
+            'vidutinė_temperatūra': hot_periods['temperatura'].mean() if not hot_periods.empty else 0
+        },
+        'šalti_periodai': {
+            'valandos': len(cold_periods),
+            'procentas': (len(cold_periods) / total_hours) * 100,
+            'vidutinė_temperatūra': cold_periods['temperatura'].mean() if not cold_periods.empty else 0
+        },
+        'komfortingi_periodai': {
+            'valandos': len(comfortable_periods),
+            'procentas': (len(comfortable_periods) / total_hours) * 100,
+            'vidutinė_temperatūra': comfortable_periods['temperatura'].mean() if not comfortable_periods.empty else 0
         }
     }
     
-    # SavaitgaliÅ³ analizÄ— jei yra prognozÄ—s
-    if forecast is not None:
-        report_data['analysis']['weekend_rain'] = analyzer.analyze_weekend_rain_forecast()
-    
-    # Grafikai
-    visualizer = WeatherVisualizer("report_plots")
-    
-    plots = []
-    
-    # TemperatÅ«ros tendencija
-    temp_plot = visualizer.plot_temperature_trend(
-        historical, forecast,
-        title=f"{city.title()} temperatÅ«ros kaita",
-        save_file=f"temp_trend_{city}_{days}d.png"
-    )
-    if temp_plot:
-        plots.append(temp_plot)
-    
-    # Oro sÄ…lygÅ³ dashboard
-    dashboard_plot = visualizer.plot_weather_dashboard(
-        historical,
-        title=f"{city.title()} oro sÄ…lygÅ³ suvestinÄ—",
-        save_file=f"dashboard_{city}_{days}d.png"
-    )
-    if dashboard_plot:
-        plots.append(dashboard_plot)
-    
-    # Koreliacijos matrica
-    corr_plot = visualizer.plot_correlation_matrix(
-        historical,
-        title=f"{city.title()} oro parametrÅ³ koreliacija",
-        save_file=f"correlation_{city}_{days}d.png"
-    )
-    if corr_plot:
-        plots.append(corr_plot)
-    
-    report_data['plots'] = plots
-    
-    # IÅsaugome ataskaitÄ…
-    if output_format.lower() == "json":
-        filename = f"weather_report_{city}_{days}d.json"
-        with open(filename, 'w', encoding='utf8') as f:
-            json.dump(report_data, f, ensure_ascii=False, indent=2, default=str)
-        print(f"š“„ JSON ataskaita iÅsaugota: {filename}")
-    
-    elif output_format.lower() == "html":
-        filename = f"weather_report_{city}_{days}d.html"
-        
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Oro sÄ…lygÅ³ ataskaita  {city.title()}</title>
-            <meta charset="UTF8">
-            <style>
-                body {{ fontfamily: Arial, sansserif; margin: 40px; }}
-                .header {{ background: #4CAF50; color: white; padding: 20px; textalign: center; }}
-                .section {{ margin: 20px 0; padding: 15px; border: 1px solid #ddd; }}
-                .stats {{ display: grid; gridtemplatecolumns: repeat(autofit, minmax(200px, 1fr)); gap: 15px; }}
-                .statbox {{ background: #f9f9f9; padding: 15px; textalign: center; borderradius: 5px; }}
-                .plot {{ textalign: center; margin: 20px 0; }}
-                .plot img {{ maxwidth: 100%; height: auto; }}
-            </style>
-        </head>
-        <body>
-            <div class="header">
-                <h1>š¤ļø¸ Oro sÄ…lygÅ³ ataskaita</h1>
-                <h2>{city.title()}</h2>
-                <p>Laikotarpis: {start_date}  {end_date} ({days} dienos)</p>
-                <p>Ataskaita sukurta: {datetime.now().strftime('%Y%m%d %H:%M')}</p>
-            </div>
-            
-            <div class="section">
-                <h3>š“ DuomenÅ³ suvestinÄ—</h3>
-                <div class="stats">
-                    <div class="statbox">
-                        <h4>IstoriniÅ³ ÄÆraÅÅ³</h4>
-                        <p>{report_data['data_summary']['historical_records']}</p>
-                    </div>
-                    <div class="statbox">
-                        <h4>PrognozÄ—s ÄÆraÅÅ³</h4>
-                        <p>{report_data['data_summary']['forecast_records']}</p>
-                    </div>
-                    <div class="statbox">
-                        <h4>DuomenÅ³ aprÄ—ptis</h4>
-                        <p>{report_data['data_summary']['data_coverage']:.1f}%</p>
-                    </div>
-                </div>
-            </div>
-        """
-        
-        # DabartinÄ—s sÄ…lygos
-        if current:
-            html_content += f"""
-            <div class="section">
-                <h3>šļø¸ DabartinÄ—s oro sÄ…lygos</h3>
-                <div class="stats">
-            """
-            
-            if 'airTemperature' in current:
-                html_content += f"""
-                    <div class="statbox">
-                        <h4>TemperatÅ«ra</h4>
-                        <p>{current['airTemperature']}Ā°C</p>
-                    </div>
-                """
-            
-            if 'relativeHumidity' in current:
-                html_content += f"""
-                    <div class="statbox">
-                        <h4>DrÄ—gmÄ—</h4>
-                        <p>{current['relativeHumidity']}%</p>
-                    </div>
-                """
-            
-            if 'windSpeed' in current:
-                html_content += f"""
-                    <div class="statbox">
-                        <h4>VÄ—jo greitis</h4>
-                        <p>{current['windSpeed']} m/s</p>
-                    </div>
-                """
-            
-            html_content += "</div></div>"
-        
-        # Vidurkiai
-        if report_data['analysis']['averages']:
-            averages = report_data['analysis']['averages']
-            html_content += f"""
-            <div class="section">
-                <h3>š“ Laikotarpio vidurkiai</h3>
-                <div class="stats">
-                    <div class="statbox">
-                        <h4>Vid. temperatÅ«ra</h4>
-                        <p>{averages.get('average_temperature', 0):.1f}Ā°C</p>
-                    </div>
-                    <div class="statbox">
-                        <h4>Vid. drÄ—gmÄ—</h4>
-                        <p>{averages.get('average_humidity', 0):.1f}%</p>
-                    </div>
-                    <div class="statbox">
-                        <h4>Vid. vÄ—jo greitis</h4>
-                        <p>{averages.get('average_wind_speed', 0):.1f} m/s</p>
-                    </div>
-                    <div class="statbox">
-                        <h4>Vid. slÄ—gis</h4>
-                        <p>{averages.get('average_pressure', 0):.0f} hPa</p>
-                    </div>
-                </div>
-            </div>
-            """
-        
-        # KraÅtutinÄ—s reikÅmÄ—s
-        extremes = report_data['analysis']['extremes']
-        if any(extremes.values()):
-            html_content += f"""
-            <div class="section">
-                <h3>š”ā¯„ļø¸ KraÅtutinÄ—s reikÅmÄ—s</h3>
-                <div class="stats">
-            """
-            
-            if extremes['max_temp'] is not None:
-                html_content += f"""
-                    <div class="statbox">
-                        <h4>Max temperatÅ«ra</h4>
-                        <p>{extremes['max_temp']:.1f}Ā°C</p>
-                    </div>
-                """
-            
-            if extremes['min_temp'] is not None:
-                html_content += f"""
-                    <div class="statbox">
-                        <h4>Min temperatÅ«ra</h4>
-                        <p>{extremes['min_temp']:.1f}Ā°C</p>
-                    </div>
-                """
-            
-            if extremes['max_wind'] is not None:
-                html_content += f"""
-                    <div class="statbox">
-                        <h4>Max vÄ—jo greitis</h4>
-                        <p>{extremes['max_wind']:.1f} m/s</p>
-                    </div>
-                """
-            
-            if extremes['max_humidity'] is not None:
-                html_content += f"""
-                    <div class="statbox">
-                        <h4>Max drÄ—gmÄ—</h4>
-                        <p>{extremes['max_humidity']:.1f}%</p>
-                    </div>
-                """
-            
-            html_content += "</div></div>"
-        
-        # Grafikai
-        if plots:
-            html_content += """
-            <div class="section">
-                <h3>š“ Grafikai</h3>
-            """
-            
-            for plot_path in plots:
-                plot_name = plot_path.split('/')[1] if '/' in plot_path else plot_path.split('\\')[1]
-                html_content += f"""
-                <div class="plot">
-                    <h4>{plot_name}</h4>
-                    <img src="{plot_path}" alt="{plot_name}">
-                </div>
-                """
-            
-            html_content += "</div>"
-        
-        html_content += """
-            <div class="section">
-                <h3>ā„¹ļø¸ Informacija</h3>
-                <p>DuomenÅ³ Åaltinis: <a href="https://api.meteo.lt/">Lietuvos hidrometeorologijos tarnyba</a></p>
-                <p>Ataskaita sukurta automatiÅkai naudojant Weather Analysis System</p>
-            </div>
-        </body>
-        </html>
-        """
-        
-        with open(filename, 'w', encoding='utf8') as f:
-            f.write(html_content)
-        
-        print(f"š“„ HTML ataskaita iÅsaugota: {filename}")
-    
-    # Spausdiname pagrindinius rezultatus
-    print(f"\nš“‹ ATASKAITOS SUVESTINÄ–  {city.upper()}")
-    print("=" * 40)
-    print(f"š“… Laikotarpis: {days} dienos")
-    print(f"š“ IstoriniÅ³ ÄÆraÅÅ³: {report_data['data_summary']['historical_records']}")
-    print(f"š”® PrognozÄ—s ÄÆraÅÅ³: {report_data['data_summary']['forecast_records']}")
-    print(f"š“ DuomenÅ³ aprÄ—ptis: {report_data['data_summary']['data_coverage']:.1f}%")
-    
-    if report_data['analysis']['averages']:
-        avg = report_data['analysis']['averages']
-        print(f"\nšļø¸ Vid. temperatÅ«ra: {avg.get('average_temperature', 0):.1f}Ā°C")
-        print(f"š’§ Vid. drÄ—gmÄ—: {avg.get('average_humidity', 0):.1f}%")
-        print(f"š’Ø Vid. vÄ—jo greitis: {avg.get('average_wind_speed', 0):.1f} m/s")
-    
-    print(f"\nš“ Sukurti grafikai: {len(plots)}")
-    print(f"š“„ Ataskaita iÅsaugota: {filename}")
-    
-    return report_data
+    return analysis
 
 # Naudojimo pavyzdys
-report = generate_weather_report("vilnius", days=14, output_format="html")
+api = WeatherAPI('vilnius')
+data = api.get_historical_data('2024-01-01', '2024-01-31')
+
+if data is not None:
+    custom_analysis = custom_temperature_analysis(data, threshold_hot=20, threshold_cold=5)
+    
+    print("PASIRINKTINĖ TEMPERATŪROS ANALIZĖ:")
+    for category, stats in custom_analysis.items():
+        print(f"  {category.upper()}:")
+        print(f"    Valandų: {stats['valandos']}")
+        print(f"    Procentas: {stats['procentas']:.1f}%")
+        if stats['vidutinė_temperatūra']:
+            print(f"    Vid. temp.: {stats['vidutinė_temperatūra']:.1f}°C")
 ```
 
-## Praktiniai patarimai
-
-### 1. Performance optimizavimas
+### Batch duomenų nuskaitymas
 
 ```python
-# Cache API uÅ¾klausas
-from functools import lru_cache
-
-@lru_cache(maxsize=32)
-def cached_weather_data(city, start_date, end_date):
+def download_yearly_data(city, year):
+    """Parsisiunčia visų meti duomenis po mėnesį"""
+    
     api = WeatherAPI(city)
-    return api.get_historical_data(start_date, end_date)
+    all_data = []
+    
+    for month in range(1, 13):
+        try:
+            # Apskaičiuoti mėnesio pradžią ir pabaigą
+            start_date = f"{year}-{month:02d}-01"
+            
+            if month == 12:
+                end_date = f"{year}-12-31"
+            else:
+                next_month = datetime(year, month + 1, 1)
+                end_date = (next_month - timedelta(days=1)).strftime('%Y-%m-%d')
+            
+            print(f"Nuskaitomas {year}-{month:02d}...")
+            
+            monthly_data = api.get_historical_data(start_date, end_date)
+            
+            if monthly_data is not None and not monthly_data.empty:
+                all_data.append(monthly_data)
+                print(f"  Gauti {len(monthly_data)} įrašai")
+            else:
+                print(f"  Nėra duomenų")
+                
+            # Trumpa pauzė tarp užklausų
+            import time
+            time.sleep(1)
+            
+        except Exception as e:
+            print(f"  Klaida: {e}")
+            continue
+    
+    if all_data:
+        # Sujungti visus duomenis
+        yearly_data = pd.concat(all_data, sort=False)
+        yearly_data.sort_index(inplace=True)
+        
+        # Išsaugoti
+        filename = f"data/{city}_yearly_{year}.csv"
+        yearly_data.to_csv(filename, encoding='utf-8')
+        
+        print(f"\nMetin duomenys išsaugoti: {filename}")
+        print(f"Iš viso įrašų: {len(yearly_data)}")
+        
+        return yearly_data
+    
+    return None
 
-# Naudokite pandas optimizacijas
-import pandas as pd
-
-# Skaitant didelius CSV failus
-data = pd.read_csv('large_weather_data.csv', 
-                   parse_dates=['timestamp'],
-                   index_col='timestamp',
-                   chunksize=10000)
-
-# Atminties optimizavimas
-historical_data = historical_data.astype({
-    'airTemperature': 'float32',
-    'relativeHumidity': 'float32',
-    'windSpeed': 'float32'
-})
+# Naudojimo pavyzdys (atsargiai su API apkrova!)
+# yearly_data = download_yearly_data('vilnius', 2023)
 ```
 
-### 2. KlaidÅ³ apdorojimas
+### Pažengusi vizualizacija
+
+```python
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+def create_advanced_temperature_plot(data, title="Temperatūros analizė"):
+    """Pažengęs temperatūros grafikas su detalėmis"""
+    
+    if 'temperatura' not in data.columns:
+        print("Nėra temperatūros duomenų")
+        return
+        
+    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+    fig.suptitle(title, fontsize=16, fontweight='bold')
+    
+    # 1. Temperatūros laike
+    axes[0, 0].plot(data.index, data['temperatura'], color='red', alpha=0.7)
+    axes[0, 0].set_title('Temperatūra laike')
+    axes[0, 0].set_ylabel('Temperatūra (°C)')
+    axes[0, 0].grid(True, alpha=0.3)
+    
+    # 2. Temperatūros pasiskirstymas
+    axes[0, 1].hist(data['temperatura'], bins=30, color='skyblue', alpha=0.7, edgecolor='black')
+    axes[0, 1].set_title('Temperatūros pasiskirstymas')
+    axes[0, 1].set_xlabel('Temperatūra (°C)')
+    axes[0, 1].set_ylabel('Dažnis')
+    
+    # Pridedame vidurk ir mediana linijas
+    mean_temp = data['temperatura'].mean()
+    median_temp = data['temperatura'].median()
+    axes[0, 1].axvline(mean_temp, color='red', linestyle='--', label=f'Vidurkis: {mean_temp:.1f}°C')
+    axes[0, 1].axvline(median_temp, color='green', linestyle='--', label=f'Mediana: {median_temp:.1f}°C')
+    axes[0, 1].legend()
+    
+    # 3. Temperatūra pagal valandas
+    hourly_temps = data.groupby(data.index.hour)['temperatura'].mean()
+    axes[1, 0].plot(hourly_temps.index, hourly_temps.values, marker='o')
+    axes[1, 0].set_title('Vidutinė temperatūra pagal valandas')
+    axes[1, 0].set_xlabel('Valanda')
+    axes[1, 0].set_ylabel('Temperatūra (°C)')
+    axes[1, 0].set_xticks(range(0, 24, 2))
+    axes[1, 0].grid(True, alpha=0.3)
+    
+    # 4. Box plot pagal savaitės dienas
+    data_with_weekday = data.copy()
+    weekday_names = ['Pirmadienis', 'Antradienis', 'Trečiadienis', 'Ketvirtadienis',
+                     'Penktadienis', 'Šeštadienis', 'Sekmadienis']
+    data_with_weekday['weekday'] = data.index.day_name()
+    
+    # Konvertuojame į lietuvių kalba
+    weekday_mapping = {
+        'Monday': 'Pirmadienis', 'Tuesday': 'Antradienis', 'Wednesday': 'Trečiadienis',
+        'Thursday': 'Ketvirtadienis', 'Friday': 'Penktadienis', 'Saturday': 'Šeštadienis',
+        'Sunday': 'Sekmadienis'
+    }
+    data_with_weekday['weekday_lt'] = data_with_weekday['weekday'].map(weekday_mapping)
+    
+    weekday_order = ['Pirmadienis', 'Antradienis', 'Trečiadienis', 'Ketvirtadienis',
+                     'Penktadienis', 'Šeštadienis', 'Sekmadienis']
+    
+    sns.boxplot(data=data_with_weekday, x='weekday_lt', y='temperatura', 
+                order=weekday_order, ax=axes[1, 1])
+    axes[1, 1].set_title('Temperatūros pasiskirstymas pagal savaitės dienas')
+    axes[1, 1].set_xlabel('Savaitės diena')
+    axes[1, 1].set_ylabel('Temperatūra (°C)')
+    axes[1, 1].tick_params(axis='x', rotation=45)
+    
+    plt.tight_layout()
+    
+    # Išsaugoti grafiką
+    filename = 'plots/advanced_temperature_analysis.png'
+    plt.savefig(filename, dpi=300, bbox_inches='tight')
+    plt.show()
+    
+    print(f"Pažengęs grafikas išsaugotas: {filename}")
+
+# Naudojimo pavyzdys
+api = WeatherAPI('vilnius')
+data = api.get_historical_data('2024-01-01', '2024-01-31')
+
+if data is not None:
+    create_advanced_temperature_plot(data, "Vilniaus temperatūros analizė - 2024 sausis")
+```
+
+## Dažniausi klausimai
+
+### Q: Kaip dažnai galima daryti API užklausas?
+**A:** meteo.lt API neturi aiškiai nurodyti limitų, bet rekomenduojama nedaryti daugiau nei 60 užklausų per minutę. Sistema turi integruotą retry logika.
+
+### Q: Kokie duomenys yra prieinami?
+**A:** 
+- **Istoriniai duomenys**: Temperatūra, drėgmė, vėjo greitis, slėgimas, krituliai
+- **Prognozės**: Iki 7 dienų į priekį
+- **Dabartiniai**: Realaus laiko duomenys
+
+### Q: Ar duomenys yra tikslūs?
+**A:** Duomenys gaunami iš oficialių meteorologijos stočių, tačiau gali būti matavimo klaidų. Rekomenduojama naudoti vidurki ir tendencijas.
+
+### Q: Kaip išsaugoti duomenis ilgalaikiam saugojimui?
+**A:**
+```python
+# CSV formatas
+data.to_csv('data/weather_data.csv', encoding='utf-8')
+
+# Excel formatas  
+data.to_excel('data/weather_data.xlsx')
+
+# JSON formatas
+data.to_json('data/weather_data.json', orient='index', date_format='iso')
+```
+
+### Q: Kaip naudoti programą serveri?
+**A:** Galima automatizuoti paleidimą:
+
+```bash
+# Linux/macOS crontab - kasdien 6 ryto
+0 6 * * * cd /path/to/weather-analysis && ./weather_env/bin/python main.py
+
+# Windows Task Scheduler - naudokite GUI arba schtasks
+```
+
+### Q: Ar veiks su senesniais Python versijas?
+**A:** Rekomenduojama Python 3.8+. Senesnės versijos neišbandytos ir gali neveikti.
+
+### Q: Kaip pridėti naują miestą?
+**A:** Redaguokite `src/weather_api.py` ir pridėkite naują miestą į `city_codes` žodyną:
+
+```python
+self.city_codes = {
+    'vilnius': 'vilnius',
+    'kaunas': 'kaunas',
+    # ...
+    'naujas_miestas': 'api_miestas_kodas'
+}
+```
+
+### Q: Kaip keisti grafiko stilius?
+**A:**
+```python
+import matplotlib.pyplot as plt
+
+# Pasirinkti stilių
+plt.style.use('seaborn')  # arba 'ggplot', 'classic' etc.
+
+# Arba sukurti custom matplotlib rc paramet
+plt.rcParams['font.size'] = 12
+plt.rcParams['figure.figsize'] = [12, 8]
+```
+
+## Trikčių šalinimas
+
+### Problema: "ModuleNotFoundError"
+
+**Sprendimas:**
+```bash
+# Patikrinkite ar aktyvuotas virtual environment
+source weather_env/bin/activate  # macOS/Linux
+weather_env\Scripts\activate     # Windows
+
+# Perkraukite priklausomybes
+pip install -r requirements.txt
+```
+
+### Problema: API užklausos nepavyksta
+
+**Patikrinkite:**
+1. Internetinis ryšys
+2. meteo.lt svetainė veikia
+3. Braukimo arba VPN neblokuoja
+
+**Debug kodas:**
+```python
+import requests
+
+# Tiesioginis testas
+response = requests.get('https://api.meteo.lt/v1/places')
+print(f"Status: {response.status_code}")
+print(f"Response: {response.text[:200]}")
+```
+
+### Problema: Grafikai nerodomai
+
+**Windows:**
+```bash
+pip install --upgrade matplotlib
+# Arba bandykite skirtingą backend
+```
+
+**Linux:**
+```bash
+sudo apt-get install python3-tk
+```
+
+**macOS:**
+```bash
+brew install tcl-tk
+```
+
+### Problema: Encoding klaidos
+
+**Windows PowerShell:**
+```powershell
+# Nustatykite UTF-8
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+chcp 65001
+```
+
+**Programoje:**
+```python
+import sys
+import io
+
+# Force UTF-8 output
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+```
+
+### Problema: Lėtas veikimas
+
+**Optimizavimai:**
+```python
+# Sumažinkite duomenų kiekį
+data = api.get_historical_data('2024-01-01', '2024-01-07')  # 7 dienos vietoj 30
+
+# Naudokite tiesinę interpoliaciją
+interpolated = interpolator.interpolate_to_5min('linear')  # greičiausia
+
+# Sumažinkite grafikų DPI
+plt.savefig('plot.png', dpi=150)  # vietoj 300
+```
+
+### Problema: Atmintis trūksta
+
+**Sprendimai:**
+```python
+# Valo duomenis iš atminties
+del large_dataframe
+import gc
+gc.collect()
+
+# Naudokite chunks didiesius duomenis
+for chunk in pd.read_csv('large_file.csv', chunksize=1000):
+    process_chunk(chunk)
+```
+
+### Debug režimas
+
+Įjunkite detalų logging:
 
 ```python
 import logging
-from time import sleep
 
-def robust_api_call(api_func, max_retries=3, delay=5):
-    """
-    API uÅ¾klausÅ³ su retry logika
-    """
-    for attempt in range(max_retries):
-        try:
-            result = api_func()
-            if result is not None:
-                return result
-        except Exception as e:
-            logging.warning(f"API klaida (bandymas {attempt + 1}): {e}")
-            if attempt < max_retries  1:
-                sleep(delay)
-    
-    logging.error("API uÅ¾klausÄ… nepavyko ÄÆvykdyti po visÅ³ bandymÅ³")
-    return None
-
-# Naudojimas
-api = WeatherAPI("vilnius")
-data = robust_api_call(
-    lambda: api.get_historical_data("20240101", "20240131")
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
+
+# Dabar visa veikla bus loginama detalizuotai
 ```
 
-### 3. Batch processing
+---
 
-```python
-def process_multiple_cities_batch(cities, start_date, end_date):
-    """
-    Masinis miestÅ³ duomenÅ³ apdorojimas
-    """
-    import time
-    
-    results = {}
-    
-    for i, city in enumerate(cities):
-        print(f"Apdorojamas miestas {i+1}/{len(cities)}: {city}")
-        
-        try:
-            api = WeatherAPI(city)
-            data = api.get_historical_data(start_date, end_date)
-            
-            if data is not None and not data.empty:
-                analyzer = WeatherAnalyzer(data)
-                results[city] = {
-                    'data': data,
-                    'averages': analyzer.calculate_annual_averages(),
-                    'day_night': analyzer.analyze_day_night_temperature()
-                }
-                
-                print(f"ā… {city}: {len(data)} ÄÆraÅÅ³")
-            else:
-                print(f"ā¯ {city}: NÄ—ra duomenÅ³")
-                results[city] = None
-        
-        except Exception as e:
-            print(f"ā¯ {city}: Klaida  {e}")
-            results[city] = None
-        
-        # Pause tarp uÅ¾klausÅ³ kad neperkrauti API
-        if i < len(cities)  1:
-            time.sleep(2)
-    
-    return results
-
-# Naudojimas
-cities = ["vilnius", "kaunas", "klaipeda", "siauliai", "panevezys"]
-batch_results = process_multiple_cities_batch(cities, "20240101", "20240131")
-```
-
-### 4. DuomenÅ³ eksportavimas
-
-```python
-def export_analysis_results(data, filename_prefix="weather_export"):
-    """
-    Eksportuoja analizÄ—s rezultatus ÄÆvairiais formatais
-    """
-    import json
-    import pickle
-    from datetime import datetime
-    
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    
-    # CSV eksportas
-    if isinstance(data, pd.DataFrame):
-        csv_file = f"{filename_prefix}_{timestamp}.csv"
-        data.to_csv(csv_file, index=True)
-        print(f"š“„ CSV eksportas: {csv_file}")
-    
-    # JSON eksportas (dictionary rezultatams)
-    if isinstance(data, dict):
-        json_file = f"{filename_prefix}_{timestamp}.json"
-        with open(json_file, 'w', encoding='utf8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2, default=str)
-        print(f"š“„ JSON eksportas: {json_file}")
-    
-    # Pickle eksportas (Python objektams)
-    pickle_file = f"{filename_prefix}_{timestamp}.pkl"
-    with open(pickle_file, 'wb') as f:
-        pickle.dump(data, f)
-    print(f"š“„ Pickle eksportas: {pickle_file}")
-    
-    # Excel eksportas (jei pandas DataFrame)
-    if isinstance(data, pd.DataFrame):
-        try:
-            excel_file = f"{filename_prefix}_{timestamp}.xlsx"
-            data.to_excel(excel_file, index=True, engine='openpyxl')
-            print(f"š“„ Excel eksportas: {excel_file}")
-        except ImportError:
-            print("ā ļø¸ Excel eksportas neprieinamas  ÄÆdiekite openpyxl")
-
-# Naudojimo pavyzdÅ¾iai
-export_analysis_results(historical_data, "vilnius_historical")
-export_analysis_results(analysis_results, "vilnius_analysis")
-```
-
-
-
-## ā ļø¸ Pastabos ir apribojimai
-
-1. **API limitai**: Nenaudokite per daÅ¾nai  rekomenduojama 12 sekundÄ—s tarp uÅ¾klausÅ³
-2. **DuomenÅ³ aprÄ—ptis**: Istoriniai duomenys gali bÅ«ti ribotos apimties
-3. **Laiko zonos**: Visi duomenys automatiÅkai konvertuojami ÄÆ Lietuvos laiko zonÄ…
-4. **Internetinis ryÅys**: Reikalingas stabilas ryÅys su api.meteo.lt
-
-**Daugiau informacijos ir pavyzdÅ¾iÅ³ rasite API dokumentacijoje ir Github repozitorijoje.**
+Ši sistema sukurta mokymosi ir analizės tikslais. Naudokite protingai ir gerbian meteo.lt API resursus!

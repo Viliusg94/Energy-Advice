@@ -1,303 +1,496 @@
-# API Dokumentacija - Lietuvos oro duomenų analizės sistema
+# API dokumentacija - Lietuvos oro duomenų analizės sistema
 
-## Apžvalga
+## Bendros informacijos
 
-Ši dokumentacija aprašo Lietuvos oro duomenų analizės sistemos API funkcionalumą ir naudojimą. Sistema naudoja Lietuvos hidrometeorologijos tarnybos REST API (https://api.meteo.lt/) duomenų nuskaitymui ir analizei.
+Šis dokumentas aprašo sistemą klasių API, metodų ir funkcijų naudojimą Lietuvos oro duomenų analizės sistemoje. Sistema naudoja meteo.lt API duomenų gavimui ir pateikia išsamius analizės bei vizualizacijos įrankius.
 
 ## Modulių struktūra
 
-### 1. WeatherAPI klasė (`src/weather_api.py`)
+### src.weather_api - WeatherAPI klasė
 
-Pagrindinė klasė darbui su meteo.lt API.
+Atsakingas už komunikaciją su meteo.lt API.
 
 #### Konstruktorius
+
 ```python
 WeatherAPI(location_code: str = "vilnius")
 ```
 
 **Parametrai:**
-- `location_code` (str): Vietovės kodas (default: "vilnius")
+- `location_code` (str): Miesto kodas. Palaikomi: 'vilnius', 'kaunas', 'klaipeda', 'siauliai', 'panevezys'
 
-**Galimi miestų kodai:**
-- `vilnius` - Vilnius
-- `kaunas` - Kaunas  
-- `klaipeda` - Klaipėda
-- `siauliai` - Šiauliai
-- `panevezys` - Panevėžys
+**Klaidos:**
+- `ValueError`: Kai location_code nepalaiko
 
-#### Metodai
+**Pavyzdys:**
+```python
+from src.weather_api import WeatherAPI
 
-##### `get_historical_data(start_date: str, end_date: str) -> Optional[pd.DataFrame]`
+# Sukuriamas API objektas Vilniui
+api = WeatherAPI('vilnius')
 
-Nuskaito istorinius oro duomenis nurodytam laikotarpiui.
+# Kitam miestui
+api_kaunas = WeatherAPI('kaunas')
+```
+
+#### get_historical_data()
+
+```python
+get_historical_data(start_date: str, end_date: str) -> Optional[pd.DataFrame]
+```
+
+Gauna istorinius oro duomenis nurodytam laikotarpiui.
 
 **Parametrai:**
-- `start_date` (str): Pradžios data formatu YYYY-MM-DD
-- `end_date` (str): Pabaigos data formatu YYYY-MM-DD
+- `start_date` (str): Pradžios data YYYY-MM-DD formatu
+- `end_date` (str): Pabaigos data YYYY-MM-DD formatu
 
 **Grąžina:**
-- `pd.DataFrame`: Istoriniai duomenys su datetime indeksu
-- `None`: Jei klaida arba nėra duomenų
+- `pd.DataFrame`: Istoriniai oro duomenys su lietuviškais stulpelių pavadinimais
+- `None`: Klaidos atveju
+
+**Stulpeliai:**
+- `temperatura` (float): Oro temperatūra (°C)
+- `dregme` (float): Santykine drėgmė (%)
+- `vejo_greitis` (float): Vėjo greitis (m/s)
+- `slegimasJuros` (float): Slėgimas jūros lygyje (hPa)
+- `krituliai` (float): Kritulių kiekis (mm)
 
 **Pavyzdys:**
 ```python
-api = WeatherAPI("vilnius")
-data = api.get_historical_data("2024-01-01", "2024-01-31")
+# Gauti paskutinių 7 dienų duomenis
+from datetime import datetime, timedelta
+
+end_date = datetime.now()
+start_date = end_date - timedelta(days=7)
+
+data = api.get_historical_data(
+    start_date.strftime('%Y-%m-%d'),
+    end_date.strftime('%Y-%m-%d')
+)
+
+if data is not None:
+    print(f"Gauti duomenys: {len(data)} įrašų")
+    print(f"Vidutinė temperatūra: {data['temperatura'].mean():.1f}°C")
 ```
 
-##### `get_forecast_data() -> Optional[pd.DataFrame]`
+#### get_forecast_data()
 
-Nuskaito oro prognozės duomenis.
+```python
+get_forecast_data(days: int = 7) -> Optional[pd.DataFrame]
+```
+
+Gauna oro prognozės duomenis.
+
+**Parametrai:**
+- `days` (int): Dienų skaičius prognozei (numatytasis: 7)
 
 **Grąžina:**
-- `pd.DataFrame`: Prognozės duomenys su datetime indeksu
-- `None`: Jei klaida arba nėra duomenų
+- `pd.DataFrame`: Prognozės duomenys
+- `None`: Klaidos atveju
 
 **Pavyzdys:**
 ```python
-forecast = api.get_forecast_data()
+# Gauti 5 dienų prognozę
+forecast = api.get_forecast_data(days=5)
+
+if forecast is not None:
+    print("Temperatūros prognozė:")
+    print(forecast[['temperatura']].head())
 ```
 
-##### `get_current_conditions() -> Optional[Dict]`
+#### get_current_weather()
 
-Nuskaito dabartinius oro sąlygas.
+```python
+get_current_weather() -> Optional[Dict[str, Any]]
+```
+
+Gauna dabartinius oro duomenis.
 
 **Grąžina:**
 - `Dict`: Dabartiniai oro duomenys
-- `None`: Jei klaida
+- `None`: Klaidos atveju
 
 **Pavyzdys:**
 ```python
-current = api.get_current_conditions()
+current = api.get_current_weather()
+if current:
+    print(f"Dabartinė temperatūra: {current.get('airTemperature')}°C")
 ```
 
-### 2. WeatherAnalyzer klasė (`src/data_analysis.py`)
+### src.data_analysis - WeatherAnalyzer klasė
 
-Klasė oro duomenų analizei ir statistikos skaičiavimui.
+Atsakingas už oro duomenų statistinę analizę.
 
 #### Konstruktorius
+
 ```python
 WeatherAnalyzer(historical_data: Optional[pd.DataFrame] = None, 
                 forecast_data: Optional[pd.DataFrame] = None)
 ```
 
-#### Metodai
-
-##### `calculate_annual_averages(data: Optional[pd.DataFrame] = None) -> Dict[str, float]`
-
-Apskaičiuoja metinius oro parametrų vidurkius.
-
-**Grąžina:**
-- `average_temperature`: Vidutinė temperatūra (°C)
-- `average_humidity`: Vidutinė drėgmė (%)
-- `average_wind_speed`: Vidutinis vėjo greitis (m/s)
-- `average_pressure`: Vidutinis slėgis (hPa)
+**Parametrai:**
+- `historical_data` (pd.DataFrame, optional): Istoriniai oro duomenys
+- `forecast_data` (pd.DataFrame, optional): Prognozės duomenys
 
 **Pavyzdys:**
 ```python
-analyzer = WeatherAnalyzer(historical_data)
-averages = analyzer.calculate_annual_averages()
-print(f"Vidutinė temperatūra: {averages['average_temperature']:.1f}°C")
+from src.data_analysis import WeatherAnalyzer
+
+# Sukuriamas analyzer objektas
+analyzer = WeatherAnalyzer(historical_data, forecast_data)
 ```
 
-##### `analyze_day_night_temperature(data: Optional[pd.DataFrame] = None) -> Dict[str, float]`
+#### calculate_yearly_averages()
 
-Analizuoja dienos ir nakties temperatūros skirtumus.
+```python
+calculate_yearly_averages() -> Dict[str, float]
+```
 
-**Laiko intervalai:**
-- Diena: 08:00-20:00
-- Naktis: 20:00-08:00
+Apskaičiuoja metinius oro parametrų vidurkius (paskutinių 365 dienų).
 
 **Grąžina:**
-- `average_day_temperature`: Vidutinė dienos temperatūra (°C)
-- `average_night_temperature`: Vidutinė nakties temperatūra (°C)
-- `day_night_difference`: Temperatūros skirtumas (°C)
+- `Dict[str, float]`: Metinių vidurkių žodynas
+
+**Pavyzdys:**
+```python
+averages = analyzer.calculate_yearly_averages()
+print("Metiniai vidurkiai:")
+for key, value in averages.items():
+    print(f"  {key}: {value}")
+```
+
+#### analyze_day_night_temperature()
+
+```python
+analyze_day_night_temperature() -> Dict[str, float]
+```
+
+Analizuoja dienos (8:00-20:00) ir nakties temperatūros skirtumus.
+
+**Grąžina:**
+- `Dict[str, float]`: Dienos/nakties temperatūros analizė
+
+**Grąžinami raktai:**
+- `vidutinė_dienos_temperatūra`
+- `vidutinė_nakties_temperatūra` 
+- `maksimali_dienos_temperatūra`
+- `minimali_dienos_temperatūra`
+- `maksimali_nakties_temperatūra`
+- `minimali_nakties_temperatūra`
+- `dienos_nakties_skirtumas`
 
 **Pavyzdys:**
 ```python
 day_night = analyzer.analyze_day_night_temperature()
-print(f"Dienos/nakties skirtumas: {day_night['day_night_difference']:.1f}°C")
+if day_night:
+    print(f"Dienos temperatūra: {day_night['vidutinė_dienos_temperatūra']:.1f}°C")
+    print(f"Nakties temperatūra: {day_night['vidutinė_nakties_temperatūra']:.1f}°C")
 ```
 
-##### `analyze_weekend_rain_forecast(data: Optional[pd.DataFrame] = None) -> Dict[str, Any]`
+#### analyze_weekend_rain_forecast()
+
+```python
+analyze_weekend_rain_forecast() -> Dict[str, Any]
+```
 
 Analizuoja savaitgalių lietaus prognozes.
 
 **Grąžina:**
-- `weekend_rain_days`: Lietingų savaitgalių dienų skaičius
-- `total_weekend_days`: Bendras savaitgalių dienų skaičius
-- `rain_probability`: Lietaus tikimybė savaitgaliais (%)
+- `Dict[str, Any]`: Savaitgalių lietaus prognozės analizė
+
+**Grąžinami raktai:**
+- `savaitgalių_skaičius` (int)
+- `savaitgaliai_su_lietumi` (int)
+- `lietaus_tikimybė_procentais` (float)
+- `savaitgalių_detalizacija` (List[Dict])
 
 **Pavyzdys:**
 ```python
 weekend_rain = analyzer.analyze_weekend_rain_forecast()
-print(f"Lietaus tikimybė savaitgaliais: {weekend_rain['rain_probability']:.1f}%")
+print(f"Savaitgaliai su lietumi: {weekend_rain['savaitgaliai_su_lietumi']}")
+print(f"Lietaus tikimybė: {weekend_rain['lietaus_tikimybė_procentais']}%")
 ```
 
-##### `combine_data() -> pd.DataFrame`
+#### calculate_correlations()
 
-Sujungia istorinius ir prognozės duomenis.
+```python
+calculate_correlations() -> Optional[pd.DataFrame]
+```
+
+Apskaičiuoja oro parametrų koreliacijas.
 
 **Grąžina:**
-- `pd.DataFrame`: Sujungti duomenys chronologine tvarka
+- `pd.DataFrame`: Koreliacijos matrica
+- `None`: Klaidos atveju
 
-### 3. WeatherVisualizer klasė (`src/visualization.py`)
+#### find_extremes()
 
-Klasė oro duomenų vizualizacijai.
+```python
+find_extremes() -> Dict[str, Any]
+```
+
+Suranda ekstremaliuosius oro rodiklius.
+
+**Grąžina:**
+- `Dict[str, Any]`: Ekstremumų žodynas su reikšmėmis ir datomis
+
+#### generate_summary_report()
+
+```python
+generate_summary_report() -> Dict[str, Any]
+```
+
+Generuoja išsamią duomenų analizės ataskaitą.
+
+**Grąžina:**
+- `Dict[str, Any]`: Pilna ataskaita su visomis analizėmis
+
+### src.visualization - WeatherVisualizer klasė
+
+Atsakingas už oro duomenų vizualizavimą.
 
 #### Konstruktorius
+
 ```python
-WeatherVisualizer(output_dir: str = "plots")
+WeatherVisualizer(historical_data: Optional[pd.DataFrame] = None, 
+                  forecast_data: Optional[pd.DataFrame] = None,
+                  plots_dir: str = "plots")
 ```
 
-#### Metodai
+**Parametrai:**
+- `historical_data` (pd.DataFrame, optional): Istoriniai duomenys
+- `forecast_data` (pd.DataFrame, optional): Prognozės duomenys  
+- `plots_dir` (str): Katalogo pavadinimas grafikams
 
-##### `plot_temperature_trend(historical_data: Optional[pd.DataFrame] = None, forecast_data: Optional[pd.DataFrame] = None, title: str = "Temperatūros kaita", save_file: str = "temperature_trend.png") -> str`
+#### plot_temperature_trend()
 
-Sukuria temperatūros kaitos grafiką.
+```python
+plot_temperature_trend(days_back: int = 7, forecast_days: int = 7) -> str
+```
+
+Sukuria temperatūros tendencijų grafiką.
 
 **Parametrai:**
-- `historical_data`: Istoriniai duomenys
-- `forecast_data`: Prognozės duomenys
-- `title`: Grafiko pavadinimas
-- `save_file`: Failo pavadinimas išsaugojimui
+- `days_back` (int): Istorinių dienų skaičius
+- `forecast_days` (int): Prognozės dienų skaičius
 
 **Grąžina:**
-- `str`: Išsaugoto failo kelias
+- `str`: Išsaugoto grafiko failo kelias
 
 **Pavyzdys:**
 ```python
-visualizer = WeatherVisualizer("plots")
-path = visualizer.plot_temperature_trend(historical_data, forecast_data)
+from src.visualization import WeatherVisualizer
+
+visualizer = WeatherVisualizer(historical_data, forecast_data)
+temp_plot = visualizer.plot_temperature_trend(days_back=14, forecast_days=5)
+print(f"Grafikas išsaugotas: {temp_plot}")
 ```
 
-##### `plot_weather_dashboard(data: pd.DataFrame, title: str = "Oro sąlygų suvestinė", save_file: str = "weather_dashboard.png") -> str`
+#### create_weather_dashboard()
 
-Sukuria visapusišką oro sąlygų grafiką (2x2 subplot'ai).
-
-**Grafikų tipai:**
-- Temperatūros kaita
-- Drėgmės kaita
-- Vėjo greičio kaita
-- Slėgio kaita
-
-##### `plot_correlation_matrix(data: pd.DataFrame, title: str = "Oro parametrų koreliacijos matrica", save_file: str = "correlation_matrix.png") -> str`
-
-Sukuria oro parametrų koreliacijos matricos heatmap.
-
-### 4. TemperatureInterpolator klasė (`src/interpolation.py`)
-
-Klasė temperatūros duomenų interpoliacijai.
-
-#### Konstruktorius
 ```python
-TemperatureInterpolator()
+create_weather_dashboard() -> str
 ```
 
-**Palaikomi metodai:**
-- `linear` - Tiesinė interpoliacija
-- `time` - Laiko pagrįsta interpoliacija
-- `polynomial` - Polinominė interpoliacija
-- `spline` - Spline interpoliacija
+Sukuria 4-in-1 oro sąlygų dashboard'ą su temperatura, drėgme, vėju ir slėgimu.
 
-#### Metodai
+**Grąžina:**
+- `str`: Dashboard grafiko failo kelias
 
-##### `interpolate_temperature(temperature_series: pd.Series, target_frequency: str = '5T', method: str = 'linear') -> Optional[pd.Series]`
+#### plot_correlation_heatmap()
 
-Interpoliuoja temperatūros duomenis iki nurodyto dažnio.
+```python
+plot_correlation_heatmap(correlation_matrix: Optional[pd.DataFrame] = None) -> str
+```
+
+Sukuria koreliacijos matricą heatmap formatu.
 
 **Parametrai:**
-- `temperature_series`: Temperatūros duomenų serija su datetime indeksu
-- `target_frequency`: Tikslo dažnis (pvz., '5T' = 5 minutės)
-- `method`: Interpoliacijos metodas
+- `correlation_matrix` (pd.DataFrame, optional): Koreliacijos matrica
+
+**Grąžina:**
+- `str`: Heatmap grafiko failo kelias
+
+#### plot_precipitation_analysis()
+
+```python
+plot_precipitation_analysis() -> str
+```
+
+Sukuria kritulių analizės grafiką.
+
+**Grąžina:**
+- `str`: Kritulių grafiko failo kelias
+
+#### create_summary_visualization()
+
+```python
+create_summary_visualization(analysis_results: Dict[str, Any]) -> str
+```
+
+Sukuria bendrą analizės rezultatų vizualizaciją.
+
+**Parametrai:**
+- `analysis_results` (Dict): Analizės rezultatų žodynas
+
+**Grąžina:**
+- `str`: Suvestinės grafiko failo kelias
+
+### src.interpolation - TemperatureInterpolator klasė
+
+Atsakingas už temperatūros duomenų interpoliaciją.
+
+#### Konstruktorius
+
+```python
+TemperatureInterpolator(temperature_data: Optional[pd.Series] = None)
+```
+
+**Parametrai:**
+- `temperature_data` (pd.Series, optional): Temperatūros duomenų seka
+
+#### interpolate_to_5min()
+
+```python
+interpolate_to_5min(method: str = 'linear', polynomial_order: int = 2) -> Optional[pd.Series]
+```
+
+Interpoliuoja temperatūros duomenis iki 5 minučių dažnio.
+
+**Parametrai:**
+- `method` (str): Interpoliacijos metodas ('linear', 'time', 'polynomial', 'spline')
+- `polynomial_order` (int): Polinomo eilė polynomial metodui
 
 **Grąžina:**
 - `pd.Series`: Interpoliuoti duomenys
-- `None`: Jei klaida
+- `None`: Klaidos atveju
 
 **Pavyzdys:**
 ```python
-interpolator = TemperatureInterpolator()
-interpolated = interpolator.interpolate_temperature(
-    temp_series, 
-    target_frequency='5T', 
-    method='linear'
-)
+from src.interpolation import TemperatureInterpolator
+
+interpolator = TemperatureInterpolator(temperature_data)
+
+# Tiesinė interpoliacija
+linear_result = interpolator.interpolate_to_5min('linear')
+
+# Polinominė interpoliacija
+poly_result = interpolator.interpolate_to_5min('polynomial', polynomial_order=3)
+
+print(f"Originalūs duomenys: {len(temperature_data)}")
+print(f"Interpoliuoti duomenys: {len(linear_result)}")
 ```
 
-##### `interpolate_with_statistics(temperature_series: pd.Series, target_frequency: str = '5T', method: str = 'linear') -> dict`
+#### compare_methods()
 
-Interpoliuoja duomenis ir grąžina detalią statistiką.
+```python
+compare_methods(methods: Optional[List[str]] = None) -> Dict[str, Any]
+```
+
+Palygina skirtingus interpoliacijos metodus.
+
+**Parametrai:**
+- `methods` (List[str], optional): Metodų sąrašas palyginimui
 
 **Grąžina:**
+- `Dict[str, Any]`: Palyginimo rezultatų žodynas
+
+#### validate_interpolation()
+
 ```python
-{
-    'interpolated_data': pd.Series,
-    'original_points': int,
-    'interpolated_points': int,
-    'improvement_ratio': float,
-    'method': str,
-    'frequency': str,
-    'original_min': float,
-    'original_max': float,
-    'original_mean': float,
-    'interpolated_min': float,
-    'interpolated_max': float,
-    'interpolated_mean': float
-}
+validate_interpolation(test_ratio: float = 0.1) -> Dict[str, Any]
 ```
 
-##### `compare_interpolation_methods(temperature_series: pd.Series, target_frequency: str = '5T') -> dict`
+Validuoja interpoliacijos tikslumą.
 
-Palygina visus interpoliacijos metodus ir rekomenduoja geriausią.
-
-##### `validate_interpolation(original: pd.Series, interpolated: pd.Series) -> dict`
-
-Validuoja interpoliacijos kokybę.
+**Parametrai:**
+- `test_ratio` (float): Testų duomenų dalis (0.0-1.0)
 
 **Grąžina:**
+- `Dict[str, Any]`: Validacijos rezultatų žodynas
+
+#### export_interpolated_data()
+
 ```python
-{
-    'valid': bool,
-    'valid_range': bool,
-    'valid_mean': bool,
-    'original_range': tuple,
-    'interpolated_range': tuple,
-    'mean_difference': float,
-    'tolerance': float
-}
+export_interpolated_data(filepath: str, format: str = 'csv') -> bool
 ```
 
-## Dažnio formatai
+Eksportuoja interpoliuotus duomenis į failą.
 
-Pandas dažnio koodai interpoliacijai:
+**Parametrai:**
+- `filepath` (str): Failo kelias
+- `format` (str): Failo formatas ('csv', 'excel', 'json')
 
-| Kodas | Aprašymas |
-|-------|-----------|
-| `T` arba `min` | Minutė |
-| `5T` | 5 minutės |
-| `10T` | 10 minučių |
-| `15T` | 15 minučių |
-| `30T` | 30 minučių |
-| `H` | Valanda |
-| `D` | Diena |
+**Grąžina:**
+- `bool`: True jei sėkmingai eksportuota
 
-## Klaidos ir išimtys
+## Klaidos valdymas
 
-Visos klasės naudoja Python logging sistemą klaidų registravimui:
+### Bendros klaidos
+
+#### ValueError
+Keliama kai pateikiami neteisingi parametrai.
+
+```python
+try:
+    api = WeatherAPI('invalid_city')
+except ValueError as e:
+    print(f"Klaida: {e}")
+```
+
+#### API klaidos
+API užklausos gali nepavykti dėl tinklo problemų arba serveri klaidų.
+
+```python
+data = api.get_historical_data('2024-01-01', '2024-01-31')
+if data is None:
+    print("Nepavyko gauti duomenų - patikrinkite internetinį ryšį")
+```
+
+### Logging sistema
+
+Sistema naudoja Python logging modulį. Galite konfigūruoti logging lygį:
 
 ```python
 import logging
+
+# Nustatykite logging lygį
 logging.basicConfig(level=logging.INFO)
+
+# Arba konkretesnį log konfigūravimą
+logger = logging.getLogger('weather_analysis')
+logger.setLevel(logging.DEBUG)
 ```
 
-**Pagrindinės išimtys:**
-- `requests.exceptions.RequestException` - API užklausų klaidos
-- `ValueError` - Neteisingi parametrai (datos, formatai)
-- `KeyError` - Trūkstami duomenų stulpeliai
-- `pandas.errors.EmptyDataError` - Tušti duomenys
+## Duomenų formatai
 
-## Pavyzdžiai
+### DataFrame struktūra
+
+Istoriniai ir prognozės duomenys grąžinami kaip pandas DataFrame su:
+
+- **Indeksas**: DatetimeIndex su Lietuvos laiko zona
+- **Stulpeliai**: Lietuviški pavadinimai oro parametrams
+
+### Laiko zonos
+
+Visi datos/laiko duomenys konvertuojami į Lietuvos laiko zoną (`Europe/Vilnius`).
+
+## Performance rekomendacijos
+
+### Duomenų kiekio valdymas
+- Istoriniams duomenis: rekomenduojama ne daugiau 90 dienų vienu metu
+- Interpoliacija: gali suvartoti daug atminties didiems duomenų kiekiams
+
+### API užklausos
+- API turi rate limiting - naudokite su įmontuota retry logika
+- Išsaugokite duomenis lokaliai kartotiniam naudojimui
+
+### Vizualizacija
+- Dideli grafikai (300+ DPI) gali užtrukti
+- Naudokite `plots_dir` parametrą grafikų organizavimui
+
+## Integravimo pavyzdžiai
 
 ### Pilnas darbo ciklas
 
@@ -306,72 +499,69 @@ from src.weather_api import WeatherAPI
 from src.data_analysis import WeatherAnalyzer
 from src.visualization import WeatherVisualizer
 from src.interpolation import TemperatureInterpolator
+from datetime import datetime, timedelta
 
-# 1. Duomenų nuskaitymas
-api = WeatherAPI("vilnius")
-historical = api.get_historical_data("2024-01-01", "2024-01-31")
-forecast = api.get_forecast_data()
+# 1. Gauti duomenis
+api = WeatherAPI('vilnius')
+end_date = datetime.now()
+start_date = end_date - timedelta(days=30)
 
-# 2. Analizė
+historical = api.get_historical_data(
+    start_date.strftime('%Y-%m-%d'),
+    end_date.strftime('%Y-%m-%d')
+)
+forecast = api.get_forecast_data(7)
+
+# 2. Analizuoti duomenis
 analyzer = WeatherAnalyzer(historical, forecast)
-annual_avg = analyzer.calculate_annual_averages()
-day_night = analyzer.analyze_day_night_temperature()
+report = analyzer.generate_summary_report()
 
-# 3. Vizualizacija
-visualizer = WeatherVisualizer("plots")
-visualizer.plot_temperature_trend(historical, forecast)
-visualizer.plot_weather_dashboard(historical)
+# 3. Vizualizuoti
+visualizer = WeatherVisualizer(historical, forecast)
+dashboard = visualizer.create_weather_dashboard()
+temp_plot = visualizer.plot_temperature_trend()
 
-# 4. Interpoliacija
-interpolator = TemperatureInterpolator()
-temp_series = historical['airTemperature']
-interpolated = interpolator.interpolate_temperature(temp_series, '5T')
+# 4. Interpoliuoti temperatūrą
+if 'temperatura' in historical.columns:
+    interpolator = TemperatureInterpolator(historical['temperatura'])
+    interpolated = interpolator.interpolate_to_5min('linear')
+    
+    # Išsaugoti interpoliuotus duomenis
+    interpolator.export_interpolated_data('interpolated_temps.csv')
 
-# 5. Rezultatų spausdinimas
-analyzer.print_analysis_results(annual_avg, day_night, {})
+print("Analizė užbaigta!")
 ```
 
-### Klaidų apdorojimas
+### Keliems miestams
 
 ```python
-try:
-    data = api.get_historical_data("2024-01-01", "2024-01-31")
-    if data is None or data.empty:
-        print("Nėra duomenų")
-        return
-    
-    # Tęsti su analize...
-    
-except Exception as e:
-    print(f"Klaida: {e}")
-    # Logging
-    import logging
-    logging.error(f"API klaida: {e}")
+cities = ['vilnius', 'kaunas', 'klaipeda']
+city_data = {}
+
+for city in cities:
+    api = WeatherAPI(city)
+    data = api.get_historical_data('2024-01-01', '2024-01-31')
+    if data is not None:
+        city_data[city] = data
+
+# Palyginti miestus
+visualizer = WeatherVisualizer()
+comparison_plot = visualizer.plot_city_comparison(city_data)
 ```
 
-## Performance ir limitai
+## API limitas ir etika
 
-### API limitai
-- meteo.lt API neturi oficialių rate limit'ų, bet rekomenduojama nesiųsti per dažnai užklausų
-- Istoriniai duomenys prieinami ribotas laikotarpis
-- Prognozės paprastai iki 7-10 dienų
+- meteo.lt API yra nemokama viešoji tarnyba
+- Naudokite protingai - nevykdykite per daug užklausų per trumpą laiką
+- Sistema turi integruotą retry logiką ir timeout valdymą
+- Rekomenduojama: maksimum 60 užklausų per minutę
 
-### Atminties naudojimas
-- Didelių duomenų rinkinių interpoliacija gali sunaudoti daug atminties
-- Rekomenduojama dalinti didelius duomenis į mažesnius blokus
+## Versijų suderinamumas
 
-### Optimizacijos patarimai
-```python
-# Naudoti chunk'us dideliems duomenims
-chunk_size = 1000
-for chunk in pd.read_csv('large_data.csv', chunksize=chunk_size):
-    # Apdoroti po dalis
-    pass
+Ši sistema sukurta su:
+- Python 3.8+
+- pandas 1.5.0+
+- numpy 1.24.0+
+- matplotlib 3.6.0+
 
-# Cache API užklausas
-from functools import lru_cache
-
-@lru_cache(maxsize=32)
-def cached_api_call(start_date, end_date):
-    return api.get_historical_data(start_date, end_date)
-```
+Senesnės versijos gali neveikti tinkamai.

@@ -1,9 +1,4 @@
+# -*- coding: utf-8 -*-
 """
-Testų paketo inicialization failas
+Oro duomenų analizės sistemos testai
 """
-
-import sys
-import os
-
-# Pridedame src katalogą į Python kelią testams
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))

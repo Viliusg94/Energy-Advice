@@ -1,0 +1,17 @@
+{
+  "analysis_date": "2025-08-08 00:15:02",
+  "city": "Vilnius",
+  "api_source": "meteo.lt (REALŪS DUOMENYS)",
+  "current_weather_available": true,
+  "current_temperature": 15.7,
+  "forecast_data_count": 86,
+  "forecast_temp_min": 11.5,
+  "forecast_temp_max": 24.7,
+  "total_precipitation_forecast": 10.500000000000002,
+  "analysis_modules_loaded": true,
+  "correlation_analysis_completed": true,
+  "weekend_forecast_available": true,
+  "status": "Analizė su realiais API duomenimis sėkmingai atlikta",
+  "api_limitations": "Istoriniai duomenys neprieinami - tik prognozės ir dabartiniai",
+  "data_quality": "Aukšta - nėra trūkstamų duomenų"
+}

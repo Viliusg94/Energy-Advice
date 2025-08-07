@@ -1,0 +1,23 @@
+{
+  "analysis_date": "2025-08-07T23:05:31.443120",
+  "location": "Vilnius",
+  "data_period": "2024-08-07  2025-08-07",
+  "historical_records": 24,
+  "forecast_records": 83,
+  "annual_averages": {
+    "average_temperature": 15.529166666666667,
+    "average_humidity": 73.83333333333333,
+    "average_wind_speed": 2.5333333333333337,
+    "average_pressure": 1020.1791666666667
+  },
+  "day_night_analysis": {
+    "average_day_temperature": 18.2,
+    "average_night_temperature": 12.858333333333334,
+    "day_night_difference": 5.341666666666665
+  },
+  "weekend_rain_forecast": {
+    "weekend_rain_days": "4",
+    "total_weekend_days": 32,
+    "rain_probability": 12.5
+  }
+}
