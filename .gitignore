@@ -1,0 +1,309 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
+#   However, in case of collaboration, if having platform-specific dependencies or dependencies
+#   having no cross-platform support, pipenv may install dependencies that don't work, or not
+#   install all needed dependencies.
+#Pipfile.lock
+
+# PEP 582; used by e.g. github.com/David-OConnor/pyflow
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+weather_env/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# Weather Analysis specific files
+# ================================
+
+# Data files (large datasets)
+data/*.csv
+data/*.json
+data/*.pkl
+data/*.xlsx
+data/*.xls
+
+# Keep example data files
+!data/example_*
+!data/README.md
+
+# Generated plots
+plots/*.png
+plots/*.jpg
+plots/*.jpeg
+plots/*.svg
+plots/*.pdf
+
+# Keep example plots
+!plots/example_*
+!plots/README.md
+
+# Log files
+*.log
+logs/
+weather_analysis.log
+
+# Temporary files
+temp/
+tmp/
+*.tmp
+
+# API keys and secrets (if any)
+.secrets
+.env.local
+config/secrets.json
+
+# IDE specific files
+# VS Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# PyCharm
+.idea/
+*.swp
+*.swo
+*~
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# Vim
+[._]*.s[a-v][a-z]
+[._]*.sw[a-p]
+[._]s[a-rt-v][a-z]
+[._]ss[a-gi-z]
+[._]sw[a-p]
+
+# OS specific files
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# Test artifacts
+.coverage
+htmlcov/
+test-results/
+test-reports/
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Large data files
+*.gz
+*.zip
+*.tar
+*.tar.gz
+*.tar.bz2
+
+# Jupyter notebook outputs (keep only clean notebooks in version control)
+# Uncomment if you want to ignore all notebook outputs
+# *.ipynb
+
+# Documentation builds
+docs/_build/
+docs/build/
+
+# Cache directories
+.cache/
+__pycache__/
+
+# Virtual environment directories
+weather_env/
+venv/
+env/
+
+# Local configuration files
+local_config.py
+local_settings.py
+
+# Development databases
+dev.db
+development.db
+
+# Generated reports
+reports/
+weather_report_*.html
+weather_report_*.json
+weather_report_*.pdf
+
+# Interpolated data cache
+interpolated_cache/
+
+# Model outputs (if any ML models are added later)
+models/
+*.model
+*.pkl.gz
+
+# Profiling results
+*.prof
+
+# Memory profiling
+*.mprofile
+
+# Performance test results
+performance_results/
+
+# API response cache
+api_cache/
+.requests_cache
+
